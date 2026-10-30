@@ -51,6 +51,10 @@ Place your PDF at:
 
 The Resume button downloads that file. Use a current, recruiter-ready PDF.
 
+## Profile data
+
+Edit `client/src/data/profile.js` to update the About, Experience, and Education sections. Internship position, responsibilities, projects, and dates are optional fields; add them only when verified.
+
 ## 4. Personalize your projects
 
 Edit `client/src/data/projects.js`. Replace the sample project details with your actual project names, descriptions, technologies, repository URLs and deployed demo URLs. Do not claim a demo is live until it is deployed and tested.

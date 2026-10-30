@@ -1,54 +1,48 @@
 import 'dotenv/config';
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import helmet from 'helmet';
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import contactRoutes from './routes/contact.js';
+import { pathToFileURL } from 'node:url';
+import app from './app.js';
+import mongoose, { connectDatabase } from './config/database.js';
+import { cookieOptions, jwtSecret } from './middleware/auth.js';
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+let server;
 
-app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_ORIGIN?.split(',').map(value => value.trim()) || 'http://localhost:5173' }));
-app.use(express.json({ limit: '20kb' }));
-
-app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'Hariom Portfolio API' }));
-app.use('/api/contact', contactRoutes);
-
-app.use((error, _req, res, _next) => {
-  console.error(error);
-  res.status(500).json({ message: 'Unexpected server error.' });
-});
-
-async function start() {
-  let mongoUri = process.env.MONGODB_URI;
-  let mongoMemoryServer = null;
-
-  try {
-    if (mongoUri) {
-      await mongoose.connect(mongoUri);
-      console.log('Connected to MongoDB');
-    } else {
-      mongoMemoryServer = await MongoMemoryServer.create();
-      mongoUri = mongoMemoryServer.getUri();
-      await mongoose.connect(mongoUri);
-      console.log('Connected to in-memory MongoDB for local development');
-    }
-
-    app.listen(PORT, () => console.log(`API running at http://localhost:${PORT}`));
-  } catch (error) {
-    console.warn('Primary MongoDB connection failed. Falling back to in-memory MongoDB for local development.');
-    try {
-      mongoMemoryServer = await MongoMemoryServer.create();
-      await mongoose.connect(mongoMemoryServer.getUri());
-      console.log('Connected to in-memory MongoDB for local development');
-      app.listen(PORT, () => console.log(`API running at http://localhost:${PORT}`));
-    } catch (fallbackError) {
-      console.error('MongoDB connection failed:', fallbackError.message);
-      process.exit(1);
-    }
+export async function start() {
+  jwtSecret();
+  cookieOptions();
+  const port = Number(process.env.PORT || 5000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('PORT must be a valid TCP port.');
   }
+
+  await connectDatabase();
+  server = app.listen(port, () => {
+    console.info(`Portfolio API listening on port ${port}.`);
+  });
+  return server;
 }
 
-start();
+async function shutdown(signal) {
+  console.info(`Received ${signal}; shutting down.`);
+  if (server) {
+    await new Promise((resolve, reject) => {
+      server.close(error => error ? reject(error) : resolve());
+    });
+  }
+  await mongoose.disconnect();
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    shutdown(signal).catch(error => {
+      console.error('Graceful shutdown failed:', error);
+      process.exitCode = 1;
+    });
+  });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  start().catch(error => {
+    console.error('API startup failed:', error.message);
+    process.exitCode = 1;
+  });
+}
