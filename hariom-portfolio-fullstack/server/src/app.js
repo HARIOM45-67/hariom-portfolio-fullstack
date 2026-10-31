@@ -7,8 +7,11 @@ import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
-import contactRoutes from './routes/contact.js';
+import queryRoutes from './routes/queries.js';
 import resumeRoutes from './routes/resume.js';
+import projectRoutes from './routes/projects.js';
+import githubRoutes from './routes/github.js';
+import analyticsRoutes from './routes/analytics.js';
 import HttpError from './utils/HttpError.js';
 
 const app = express();
@@ -48,8 +51,12 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/contact', contactRoutes);
+app.use('/api/queries', queryRoutes);
+app.use('/api/contact', queryRoutes);
 app.use('/api/resume', resumeRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/github', githubRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'API endpoint not found.' });

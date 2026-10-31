@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Send, CheckCircle2 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { api, getApiErrorMessage } from '../lib/api.js';
 
 export default function ContactForm() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -15,17 +14,18 @@ export default function ContactForm() {
     setBusy(true);
     setStatus({ type: '', text: '' });
     try {
-      const response = await fetch(`${API_URL}/api/contact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+      const response = await api.post('/api/queries', form);
+      const data = response.data;
+      const notificationFailed = data.notifications?.admin !== 'sent' || data.notifications?.visitor !== 'sent';
+      setStatus({
+        type: 'success',
+        text: notificationFailed
+          ? 'Your message was saved, but email notifications are not configured or could not be sent.'
+          : 'Thanks! Your message has been received and email notifications were sent.'
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Could not send your message.');
-      setStatus({ type: 'success', text: 'Thanks! Your message has been received.' });
       setForm({ name: '', email: '', subject: '', message: '' });
     } catch (error) {
-      setStatus({ type: 'error', text: error.message || 'Something went wrong. Please try again.' });
+      setStatus({ type: 'error', text: getApiErrorMessage(error, 'Could not send your message.') });
     } finally {
       setBusy(false);
     }
