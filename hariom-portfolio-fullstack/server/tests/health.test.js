@@ -6,11 +6,37 @@ import app from '../src/app.js';
 describe('API foundation', () => {
   it('reports the database as unavailable when it is not connected', async () => {
     await mongoose.disconnect();
-    const response = await request(app).get('/api/health');
+    const previousUri = process.env.MONGODB_URI;
+    delete process.env.MONGODB_URI;
+    let response;
+    try {
+      response = await request(app).get('/api/health');
+    } finally {
+      if (previousUri === undefined) delete process.env.MONGODB_URI;
+      else process.env.MONGODB_URI = previousUri;
+    }
 
     expect(response.status).toBe(503);
     expect(response.body).toMatchObject({
       status: 'unavailable',
+      database: 'disconnected'
+    });
+  });
+
+  it('returns a clear unavailable response for database-backed routes when MongoDB is not configured', async () => {
+    const previousUri = process.env.MONGODB_URI;
+    delete process.env.MONGODB_URI;
+    let response;
+    try {
+      response = await request(app).get('/api/projects');
+    } finally {
+      if (previousUri === undefined) delete process.env.MONGODB_URI;
+      else process.env.MONGODB_URI = previousUri;
+    }
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({
+      message: 'MONGODB_URI must be configured.',
       database: 'disconnected'
     });
   });

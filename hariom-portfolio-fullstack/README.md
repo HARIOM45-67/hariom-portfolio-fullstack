@@ -74,10 +74,10 @@ The admin dashboard displays 30-day unique visitors, section views, popular sect
 
 ## 6. Deploy
 
-- Frontend: Vercel or Netlify; set `VITE_API_URL` and `VITE_GITHUB_USERNAME`.
-- Backend: Render, Railway, or another Node host; set `MONGODB_URI`, `CLIENT_ORIGIN`, and optional SMTP variables.
-- Database: MongoDB Atlas.
-- Add your deployed frontend URL to `CLIENT_ORIGIN` and update the sitemap URL in `client/public/sitemap.xml`.
+- Deploy the backend as its own Vercel project using the `server` root directory. Follow [server/DEPLOYMENT.md](./server/DEPLOYMENT.md) for the Vercel settings, MongoDB Atlas setup, and required environment variables.
+- Deploy the frontend as a separate Vercel project using the `client` root directory. Set `VITE_API_URL` to the deployed backend origin and set `VITE_GITHUB_USERNAME`.
+- Set the frontend's exact deployed origin in the backend's `CLIENT_ORIGIN`. Keep backend secrets only in the backend's Vercel environment.
+- Update the sitemap URL in `client/public/sitemap.xml` after choosing the production frontend domain.
 
 ## Before publishing
 1. Replace the placeholder email, GitHub username and LinkedIn URL.

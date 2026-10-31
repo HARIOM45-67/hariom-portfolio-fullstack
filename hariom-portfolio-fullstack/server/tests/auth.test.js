@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import request from 'supertest';
@@ -29,6 +29,26 @@ afterAll(async () => {
 });
 
 describe('admin authentication', () => {
+  it('reuses one MongoDB connection for concurrent requests and health checks', async () => {
+    await mongoose.disconnect();
+    const connect = vi.spyOn(mongoose, 'connect');
+
+    try {
+      const [first, second] = await Promise.all([
+        connectDatabase(mongo.getUri()),
+        connectDatabase(mongo.getUri())
+      ]);
+
+      expect(first).toBe(mongoose.connection);
+      expect(second).toBe(first);
+      expect(connect).toHaveBeenCalledTimes(1);
+      expect((await request(app).get('/api/health')).body.database).toBe('connected');
+      expect(connect).toHaveBeenCalledTimes(1);
+    } finally {
+      connect.mockRestore();
+    }
+  });
+
   it('sets an HTTP-only cookie, authenticates the admin, and revokes the session on logout', async () => {
     await Admin.create({ email: 'admin@example.com', password: 'a-strong-password-123' });
     const agent = request.agent(app);

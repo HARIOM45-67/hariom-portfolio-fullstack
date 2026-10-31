@@ -13,10 +13,12 @@ import projectRoutes from './routes/projects.js';
 import githubRoutes from './routes/github.js';
 import analyticsRoutes from './routes/analytics.js';
 import HttpError from './utils/HttpError.js';
+import { connectDatabase } from './config/database.js';
 
 const app = express();
+const defaultClientOrigin = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173';
 const allowedOrigins = new Set(
-  (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  (process.env.CLIENT_ORIGIN || defaultClientOrigin)
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean)
@@ -41,7 +43,18 @@ app.use('/api', rateLimit({
   legacyHeaders: false
 }));
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
+  try {
+    await connectDatabase();
+  } catch (error) {
+    console.error('MongoDB connection failed for health check:', { name: error.name });
+    return res.status(503).json({
+      status: 'unavailable',
+      service: 'Hariom Portfolio API',
+      database: 'disconnected'
+    });
+  }
+
   const connected = mongoose.connection.readyState === 1;
   res.status(connected ? 200 : 503).json({
     status: connected ? 'ok' : 'unavailable',
@@ -50,13 +63,28 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/queries', queryRoutes);
-app.use('/api/contact', queryRoutes);
-app.use('/api/resume', resumeRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/github', githubRoutes);
-app.use('/api/analytics', analyticsRoutes);
+async function requireDatabase(_req, res, next) {
+  try {
+    await connectDatabase();
+    return next();
+  } catch (error) {
+    console.error('MongoDB connection failed for API request:', { name: error.name });
+    return res.status(503).json({
+      message: error.message === 'MONGODB_URI must be configured before connecting to MongoDB.'
+        ? 'MONGODB_URI must be configured.'
+        : 'Database is temporarily unavailable.',
+      database: 'disconnected'
+    });
+  }
+}
+
+app.use('/api/auth', requireDatabase, authRoutes);
+app.use('/api/queries', requireDatabase, queryRoutes);
+app.use('/api/contact', requireDatabase, queryRoutes);
+app.use('/api/resume', requireDatabase, resumeRoutes);
+app.use('/api/projects', requireDatabase, projectRoutes);
+app.use('/api/github', requireDatabase, githubRoutes);
+app.use('/api/analytics', requireDatabase, analyticsRoutes);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'API endpoint not found.' });

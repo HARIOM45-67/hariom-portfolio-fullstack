@@ -55,7 +55,8 @@ export async function requireAdmin(req, res, next) {
 
 export function requireTrustedOrigin(req, res, next) {
   const origin = req.get('origin');
-  const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  const defaultClientOrigin = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173';
+  const allowedOrigins = (process.env.CLIENT_ORIGIN || defaultClientOrigin)
     .split(',')
     .map(value => value.trim())
     .filter(Boolean);
