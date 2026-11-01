@@ -1,4 +1,4 @@
-# Hariom Tiwari | Full Stack Developer Portfolio
+# Hariom Potofolio
 
 Welcome to my personal portfolio website! This project showcases my skills, education, internship experience, projects, and journey as a Full Stack Developer.
 

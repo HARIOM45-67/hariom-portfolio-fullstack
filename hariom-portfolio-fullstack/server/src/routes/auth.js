@@ -34,7 +34,7 @@ router.post('/login', requireTrustedOrigin, loginLimiter, async (req, res, next)
     const token = jwt.sign(
       { ver: admin.tokenVersion },
       jwtSecret(),
-      { subject: admin.id, issuer: 'hariom-portfolio', algorithm: 'HS256', expiresIn: '8h' }
+      { subject: admin.id, issuer: 'hariom-potofolio', algorithm: 'HS256', expiresIn: '8h' }
     );
     res.cookie(authCookieName, token, { ...cookieOptions(), maxAge: 8 * 60 * 60 * 1000 });
     return res.status(200).json({ admin: { id: admin.id, email: admin.email } });
@@ -49,7 +49,7 @@ router.post('/logout', requireTrustedOrigin, async (req, res, next) => {
     try {
       const payload = jwt.verify(token, jwtSecret(), {
         algorithms: ['HS256'],
-        issuer: 'hariom-portfolio'
+        issuer: ['hariom-potofolio', 'hariom-portfolio']
       });
       if (typeof payload === 'object' && typeof payload.sub === 'string' && Number.isInteger(payload.ver)) {
         await Admin.updateOne({ _id: payload.sub, tokenVersion: payload.ver }, { $inc: { tokenVersion: 1 } });

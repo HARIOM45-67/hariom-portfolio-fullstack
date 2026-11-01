@@ -21,7 +21,7 @@ export async function createInitialAdmin() {
   }
 
   const admin = await Admin.create({ email: parsedEmail.data.toLowerCase(), password });
-  console.info(`Initial admin created for ${admin.email}. Remove the setup credentials from the environment.`);
+  console.info('Initial admin created successfully. Remove the setup credentials from the environment.');
   return admin;
 }
 

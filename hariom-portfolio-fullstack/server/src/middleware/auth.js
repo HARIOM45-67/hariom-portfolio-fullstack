@@ -32,7 +32,7 @@ export async function requireAdmin(req, res, next) {
   try {
     const payload = jwt.verify(token, jwtSecret(), {
       algorithms: ['HS256'],
-      issuer: 'hariom-portfolio'
+      issuer: ['hariom-potofolio', 'hariom-portfolio']
     });
     if (typeof payload !== 'object' || typeof payload.sub !== 'string' || !Number.isInteger(payload.ver)) {
       return res.status(401).json({ message: 'Authentication required.' });

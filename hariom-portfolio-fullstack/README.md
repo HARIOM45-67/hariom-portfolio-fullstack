@@ -1,4 +1,4 @@
-# Hariom Tiwari — Full-stack Developer Portfolio
+# Hariom Potofolio
 
 A recruiter-focused portfolio starter built with React + Vite, Node.js + Express, and MongoDB.
 

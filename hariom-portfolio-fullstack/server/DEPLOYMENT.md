@@ -8,7 +8,7 @@ Create a separate Vercel project from the portfolio repository:
 
 | Setting | Value |
 | --- | --- |
-| Project name | `hariom-portfolio-backend` |
+| Project name | `hariom-potofolio-backend` |
 | Root Directory | `server` |
 | Framework Preset | Express (or let Vercel detect Express) |
 | Build Command | Leave the detected/default command; no compile step is required |

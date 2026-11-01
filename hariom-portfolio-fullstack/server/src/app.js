@@ -50,7 +50,7 @@ app.get('/api/health', async (_req, res) => {
     console.error('MongoDB connection failed for health check:', { name: error.name });
     return res.status(503).json({
       status: 'unavailable',
-      service: 'Hariom Portfolio API',
+      service: 'hariom-potofolio API',
       database: 'disconnected'
     });
   }
@@ -58,7 +58,7 @@ app.get('/api/health', async (_req, res) => {
   const connected = mongoose.connection.readyState === 1;
   res.status(connected ? 200 : 503).json({
     status: connected ? 'ok' : 'unavailable',
-    service: 'Hariom Portfolio API',
+    service: 'hariom-potofolio API',
     database: connected ? 'connected' : 'disconnected'
   });
 });
