@@ -74,8 +74,8 @@ The admin dashboard displays 30-day unique visitors, section views, popular sect
 
 ## 6. Deploy
 
-- Deploy the backend as its own Vercel project using the `server` root directory. Follow [server/DEPLOYMENT.md](./server/DEPLOYMENT.md) for the Vercel settings, MongoDB Atlas setup, and required environment variables.
-- Deploy the frontend as a separate Vercel project using the `client` root directory. Set `VITE_API_URL` to the deployed backend origin and set `VITE_GITHUB_USERNAME`.
+- Deploy the backend as its own Vercel project using `hariom-portfolio-fullstack/server` as the repository-relative Root Directory. Follow [server/DEPLOYMENT.md](./server/DEPLOYMENT.md) for the Vercel settings, MongoDB Atlas setup, and required environment variables.
+- Deploy the frontend as a separate Vercel project using `hariom-portfolio-fullstack/client` as the repository-relative Root Directory. Set `VITE_API_URL` to the deployed backend origin and set `VITE_GITHUB_USERNAME`.
 - Set the frontend's exact deployed origin in the backend's `CLIENT_ORIGIN`. Keep backend secrets only in the backend's Vercel environment.
 - Update the sitemap URL in `client/public/sitemap.xml` after choosing the production frontend domain.
 
@@ -85,3 +85,4 @@ The admin dashboard displays 30-day unique visitors, section views, popular sect
 3. Add your actual resume PDF.
 4. Configure MongoDB and test a contact submission.
 5. Update title, description, canonical URL and sitemap domain to your deployed domain.
+6. Complete the production go-live checklist in [server/DEPLOYMENT.md](./server/DEPLOYMENT.md), including separate Vercel frontend/backend projects, Atlas, exact CORS origins, and production admin provisioning.

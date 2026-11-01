@@ -4,12 +4,14 @@ The backend is the existing Express application in this directory. [Vercel's Exp
 
 ## Vercel project settings
 
+The Git repository root contains the application in the nested `hariom-portfolio-fullstack` directory. Vercel's **Root Directory** values below are relative to the Git repository root.
+
 Create a separate Vercel project from the portfolio repository:
 
 | Setting | Value |
 | --- | --- |
 | Project name | `hariom-potofolio-backend` |
-| Root Directory | `server` |
+| Root Directory | `hariom-portfolio-fullstack/server` |
 | Framework Preset | Express (or let Vercel detect Express) |
 | Build Command | Leave the detected/default command; no compile step is required |
 | Output Directory | Leave empty/default |
@@ -17,7 +19,7 @@ Create a separate Vercel project from the portfolio repository:
 
 The Express application serves its existing `/api/...` routes directly. Do not add a rewrite that changes those paths. The current structure uses Vercel's zero-configuration Express support, so a separate `vercel.json` is not required.
 
-Configure production variables in the backend project's **Settings → Environment Variables**. Add them to Production, and to Preview/Development only when those environments have their own valid database, origins, and credentials. Do not put backend secrets in the frontend project.
+Configure production variables in the backend project's **Settings → Environment Variables**. Add them to Production, and to Preview/Development only when those environments have their own valid database, origins, and credentials. Do not put backend secrets in the frontend project. Keep the two Vercel projects pointed at this repository, with their respective `server` and `client` root directories.
 
 ## Required backend environment variables
 
@@ -43,30 +45,75 @@ Vercel sets `NODE_ENV=production` for production deployments. For the separate V
 
 ## MongoDB Atlas
 
-1. Create a production database and a dedicated database user with only the permissions the app needs.
-2. In Atlas, configure Network Access for the Vercel deployment. Prefer a supported static egress IP or private connection when available. If your Vercel plan has dynamic egress and Atlas requires a broad IP rule, understand the exposure and protect access with a strong database user password and TLS; do not use an unrestricted database user.
+1. Create a production cluster and a dedicated database user. Grant that user only `readWrite` on the portfolio database; do not use an Atlas project owner account as the application user.
+2. In Atlas, configure Network Access for the Vercel deployment. Prefer a supported static egress IP or private connection when available. Avoid `0.0.0.0/0`; if the selected hosting plan requires broader egress access, limit database-user privileges and use a unique strong password and TLS.
 3. Copy the Atlas `mongodb+srv://` URI, select the production database name, and enter it as `MONGODB_URI` in Vercel. URL-encode special characters in the database username/password. Never commit the URI.
 4. Deploy and verify `GET https://<backend-domain>/api/health` returns HTTP 200 with `"status":"ok"` and `"database":"connected"`.
 
 The app reuses Mongoose's established connection in warm instances and shares concurrent connection attempts. A failed initial connection is not cached permanently; later requests can retry. Database-dependent API requests return HTTP 503 when MongoDB is unavailable.
 
+## Frontend Vercel settings
+
+Create a second Vercel project from the same repository:
+
+| Setting | Value |
+| --- | --- |
+| Project name | Choose a unique portfolio frontend name. |
+| Root Directory | `hariom-portfolio-fullstack/client` |
+| Framework Preset | Vite |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Install Command | `npm install` |
+
+`client/vercel.json` sends SPA deep links such as `/admin/login` and `/admin/dashboard` to `index.html`. Keep this rewrite in place so refreshing a React Router route does not return Vercel's 404.
+
 ## Connect the frontend
 
-Deploy the Vercel frontend as a separate project with Root Directory `client`. Add this **frontend-project** environment variable for Production (and the appropriate Preview/Development environments):
+Add these **frontend-project** environment variables for Production (and appropriate Preview/Development environments):
 
 ```text
 VITE_API_URL=https://<backend-domain>
+VITE_SITE_URL=https://<frontend-domain>
+VITE_GITHUB_USERNAME=HARIOM45-67
 ```
 
-Set `VITE_API_URL` to the backend origin only, without an `/api` suffix. The frontend already appends its existing `/api/...` paths and sends credentials for admin cookie authentication. Also set `VITE_GITHUB_USERNAME` and, if the deployed site URL differs from the checked-in value, `VITE_SITE_URL`.
+Set `VITE_API_URL` to the backend origin only, without an `/api` suffix. The frontend already appends its existing `/api/...` paths and sends credentials for admin cookie authentication. `VITE_SITE_URL` must be the frontend origin without a trailing slash; Vite uses it for the canonical and Open Graph URLs. Update `client/public/robots.txt` and `client/public/sitemap.xml` to the final frontend domain before deployment. `VITE_GITHUB_USERNAME` is public profile configuration, not a secret.
 
-Then set the frontend's exact origin in the backend's `CLIENT_ORIGIN`, redeploy the backend, and redeploy the frontend after setting its Vite variables. CORS and authentication-origin checks use exact origins; do not use `*`. Vercel preview domains should be added explicitly when needed rather than allowing every preview origin.
+Then set the frontend's exact origin in the backend's `CLIENT_ORIGIN`, redeploy the backend, and redeploy the frontend after setting its Vite variables. CORS and authentication-origin checks use exact origins; do not use `*`. Vercel preview domains should be added explicitly when needed rather than allowing every preview origin. The production API deliberately fails closed for browser requests if `CLIENT_ORIGIN` is absent or does not exactly match the frontend origin.
 
-The two default `*.vercel.app` hostnames are cross-site for browser-cookie purposes. The backend sets secure `SameSite=None` cookies for that deployment arrangement, but browser third-party-cookie restrictions may still affect admin login. For reliable cross-browser admin cookies, use controlled custom domains on the same site (for example `portfolio.example.com` and `api.example.com`) or proxy the API through the frontend's same-site origin, then configure `CLIENT_ORIGIN` and cookie settings accordingly.
+The two default `*.vercel.app` hostnames are cross-site for browser-cookie purposes. The backend sets secure `SameSite=None` cookies for that deployment arrangement, but browser third-party-cookie restrictions may still affect admin login. For reliable cross-browser admin cookies, use controlled custom domains on the same site (for example `portfolio.example.com` and `api.example.com`) and set `COOKIE_SAME_SITE=lax`, or proxy the API through the frontend's same-site origin. Verify cookie behavior in supported browsers before launch. Set `CLIENT_ORIGIN` to the exact frontend origin either way.
+
+## Initial production admin
+
+The local admin account is in the local MongoDB database and is **not** copied to Atlas automatically. Before provisioning against production, verify the Atlas database has no admin accounts using a read-only count. Then, from a trusted local machine, run the existing one-time `npm run create:admin` script with the production `MONGODB_URI`, `INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` supplied only in that process's environment. The script refuses to create an account if any admin already exists and stores the password as a bcrypt hash. Never commit or leave the initial-admin variables configured in Vercel; remove them immediately after creation. Do not rerun creation if an account already exists.
+
+## Production environment safety
+
+- Keep `MONGODB_URI`, `JWT_SECRET`, SMTP credentials, Cloudinary credentials, and any GitHub token only in backend environment settings.
+- Generate a new production `JWT_SECRET` with at least 32 cryptographically random bytes; do not reuse the local development secret.
+- Keep secrets out of all `VITE_*` variables, frontend builds, Git, screenshots, and deployment logs. `VITE_*` values are shipped to browsers and are public.
+- Use a separate production Atlas database. Never point production at the local development database or run test suites against production.
+- Production CORS requires exact HTTPS origins. Never use `*`; add only known preview origins to their matching non-production environments.
+- The project currently has no shared distributed rate-limit store; the in-memory limiter is per function instance and is not a global production abuse quota.
+
+## Go-live checklist
+
+- [ ] Choose the final frontend and backend domains. Configure DNS and HTTPS in Vercel.
+- [ ] Create a dedicated MongoDB Atlas production cluster/database and least-privilege app user; configure the supported Vercel network path.
+- [ ] Create the backend Vercel project with Root Directory `hariom-portfolio-fullstack/server`; deploy with backend-only environment variables.
+- [ ] Create the frontend Vercel project with Root Directory `hariom-portfolio-fullstack/client`; deploy with `VITE_API_URL`, `VITE_SITE_URL`, and `VITE_GITHUB_USERNAME`.
+- [ ] Set backend `CLIENT_ORIGIN` to the exact production frontend origin; redeploy the backend after environment changes.
+- [ ] Update robots.txt and sitemap.xml to the final frontend domain; verify the generated canonical/Open Graph URL.
+- [ ] Provision the production admin only after confirming the Atlas admin count is zero; clear one-time credentials immediately.
+- [ ] Test live API health (`/api/health` must return HTTP 200 and `database: connected`), frontend root and deep links, CORS preflight, admin login/session/logout, protected dashboard routes, contact persistence, and project CRUD.
+- [ ] Confirm the resume endpoint and download behavior. Configure Cloudinary before expecting admin resume uploads; verify any published resume before launch.
+- [ ] Verify GitHub integration against the configured public username and review Vercel runtime logs for errors.
+- [ ] Submit a real contact form only after confirming the production recipient and mail configuration; otherwise verify a controlled test submission and remove it.
+- [ ] Confirm no environment secrets appear in Git, frontend assets, or logs. Record live URLs and smoke-test results before announcing deployment.
 
 ## Local development and checks
 
-From the repository root, copy `server/.env.example` to `server/.env` and `client/.env.example` to `client/.env`; set a local MongoDB URI and a private JWT secret. Then run the API and frontend in separate terminals:
+From the application directory (`hariom-portfolio-fullstack` inside the repository), copy `server/.env.example` to `server/.env` and `client/.env.example` to `client/.env`; set a local MongoDB URI and a private JWT secret. Then run the API and frontend in separate terminals:
 
 ```powershell
 cd server
@@ -86,6 +133,6 @@ The local API listens on `http://localhost:5000`; check `http://localhost:5000/a
 
 ## Current limitations
 
-- Deployment is not performed or verified by these repository changes. Vercel project creation, environment variables, Atlas network access, and the live health check must be completed in your accounts.
+- Deployment is not performed or verified by these repository changes. Vercel project creation, final production domains, environment variables, Atlas network access, and live health checks must be completed in your accounts.
 - SMTP notifications and Cloudinary resume uploads remain optional and need their respective credentials.
 - The in-memory rate-limit store is local to each running function instance; it is not a shared global quota across serverless instances. Keep Vercel's platform protections enabled and consider a shared limiter store if abuse across many instances becomes a concern.

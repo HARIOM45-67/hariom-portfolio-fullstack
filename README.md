@@ -25,8 +25,6 @@ I am Hariom Tiwari, a Computer Applications student passionate about Full Stack 
 
 ## 🛠️ Tech Stack
 
-Update this list according to the technologies actually used in the project.
-
 - Frontend: React.js, HTML, CSS, JavaScript
 - Backend: Node.js, Express.js
 - Database: MongoDB
@@ -37,13 +35,13 @@ Update this list according to the technologies actually used in the project.
 
 ```text
 hariom-portfolio-fullstack/
-├── frontend/
-├── backend/
-├── package.json
-└── README.md
+├── README.md
+└── hariom-portfolio-fullstack/
+    ├── client/
+    ├── server/
+    ├── README.md
+    └── NOTES.md
 ```
-
-*Note: Update the folder structure to match the actual repository.*
 
 ## ⚙️ Installation and Setup
 
@@ -59,19 +57,29 @@ git clone https://github.com/HARIOM45-67/hariom-portfolio-fullstack.git
 cd hariom-portfolio-fullstack
 ```
 
-3. Install dependencies in the relevant frontend/backend folders:
+3. Install and start each application from its own folder:
 
 ```bash
+cd hariom-portfolio-fullstack/server
 npm install
+npm run dev
+```
+
+In another terminal:
+
+```bash
+cd hariom-portfolio-fullstack/client
+npm install
+npm run dev
 ```
 
 4. Configure environment variables using `.env.example` if provided.
 
-5. Start the application using the scripts defined in `package.json`.
+5. Configure MongoDB and the required backend environment variables before starting the API.
 
 ## 🌐 Live Demo
 
-Coming Soon!
+See the inner project README and [`server/DEPLOYMENT.md`](./hariom-portfolio-fullstack/server/DEPLOYMENT.md) for deployment settings and the production checklist.
 
 ## 📬 Contact
 
