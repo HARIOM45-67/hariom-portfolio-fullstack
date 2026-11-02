@@ -46,6 +46,9 @@ try {
   }
   Write-Output "Node.js verifier exit code: $nodeExitCode"
   if ($nodeExitCode -ne 0) {
+    if ("$stdout`n$stderr" -match 'FAIL \| bcrypt comparison:') {
+      Write-Output 'NEXT STEP | Verification does not change the password. To reset the existing admin password, run: .\scripts\reset-admin-password.ps1'
+    }
     throw "Admin verification failed with Node.js exit code $nodeExitCode."
   }
 } finally {

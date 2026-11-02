@@ -5,8 +5,9 @@ Set-Location (Join-Path $PSScriptRoot '..')
 $existingCount = node --input-type=module -e @'
 import 'dotenv/config';
 import mongoose from 'mongoose';
+import { connectDatabase } from './src/config/database.js';
 import Admin from './src/models/Admin.js';
-await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+await connectDatabase();
 try {
   process.stdout.write(String(await Admin.countDocuments({})));
 } finally {
@@ -53,11 +54,12 @@ import jwt from 'jsonwebtoken';
 import Admin from './src/models/Admin.js';
 import app from './src/app.js';
 import { authCookieName } from './src/middleware/auth.js';
+import { connectDatabase } from './src/config/database.js';
 
-const email = process.env.VERIFY_ADMIN_EMAIL;
+const email = process.env.VERIFY_ADMIN_EMAIL?.trim().toLowerCase();
 const password = process.env.VERIFY_ADMIN_PASSWORD;
 const origin = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',')[0].trim();
-await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
+await connectDatabase();
 let server;
 try {
   const admin = await Admin.findOne({ email }).select('+password');

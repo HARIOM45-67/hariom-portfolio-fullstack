@@ -15,7 +15,10 @@ export async function createInitialAdmin() {
     throw new Error('Set a valid INITIAL_ADMIN_EMAIL and a 12–72 byte INITIAL_ADMIN_PASSWORD in the server environment.');
   }
 
-  await connectDatabase();
+  const connection = await connectDatabase();
+  console.info(
+    `Admin setup target: database "${connection.name}", collection "${Admin.collection.collectionName}".`
+  );
   if (await Admin.exists({})) {
     throw new Error('An admin account already exists; the initial admin setup can only run once.');
   }

@@ -5,6 +5,7 @@ import request from 'supertest';
 import Admin from '../src/models/Admin.js';
 import app from '../src/app.js';
 import { authCookieName } from '../src/middleware/auth.js';
+import { connectDatabase } from '../src/config/database.js';
 
 async function verifyAdmin() {
   const email = process.env.VERIFY_ADMIN_EMAIL?.trim().toLowerCase();
@@ -17,13 +18,19 @@ async function verifyAdmin() {
   let stage = 'MongoDB connection';
 
   try {
-    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
-    console.log('PASS | MongoDB connection verified.');
+    const connection = await connectDatabase();
+    const collection = Admin.collection.collectionName;
+    const adminCount = await Admin.countDocuments({});
+    console.log(
+      `PASS | MongoDB connection verified (database: ${connection.name}, collection: ${collection}, admin records: ${adminCount}).`
+    );
 
     stage = 'admin lookup';
     const admin = await Admin.findOne({ email }).select('+password');
     if (!admin) {
-      throw new Error('No admin record matches the entered email.');
+      throw new Error(
+        `No admin record matches the entered email in database "${connection.name}", collection "${collection}" (${adminCount} admin records).`
+      );
     }
     console.log('PASS | Existing admin record found.');
 
