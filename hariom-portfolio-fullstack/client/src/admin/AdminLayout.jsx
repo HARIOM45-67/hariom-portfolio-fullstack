@@ -28,6 +28,8 @@ export default function AdminLayout() {
         <NavLink to="/admin/queries">Queries</NavLink>
         <NavLink to="/admin/resume">Resume</NavLink>
         <NavLink to="/admin/projects">Projects</NavLink>
+        <NavLink to="/admin/experience">Experience</NavLink>
+        <NavLink to="/admin/certificates">Certificates</NavLink>
       </nav>
       <button className="button secondary" onClick={logout} disabled={busy}>{busy ? 'Signing out…' : 'Log out'}</button>
     </header>

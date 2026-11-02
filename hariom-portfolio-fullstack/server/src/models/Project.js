@@ -5,6 +5,7 @@ const projectSchema = new mongoose.Schema({
   slug: { type: String, required: true, trim: true, lowercase: true, unique: true, maxlength: 120 },
   description: { type: String, required: true, trim: true, minlength: 10, maxlength: 2000 },
   problemSolved: { type: String, trim: true, maxlength: 1000, default: '' },
+  features: { type: [{ type: String, trim: true, maxlength: 200 }], default: [], validate: values => values.length <= 20 },
   imageUrl: { type: String, trim: true, maxlength: 2048, default: '' },
   stack: { type: [String], default: [], validate: values => values.length <= 20 },
   liveUrl: { type: String, trim: true, maxlength: 2048, default: '' },

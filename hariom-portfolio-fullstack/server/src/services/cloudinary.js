@@ -35,6 +35,29 @@ export async function uploadResume(buffer, publicId) {
   });
 }
 
+export async function uploadCertificate(buffer, publicId, mediaType) {
+  if (!configureCloudinary()) {
+    const error = new Error('Cloudinary certificate storage is not configured.');
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const resourceType = mediaType === 'application/pdf' ? 'raw' : 'image';
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream({
+      resource_type: resourceType,
+      type: 'upload',
+      public_id: publicId,
+      overwrite: false,
+      use_filename: false
+    }, (error, result) => {
+      if (error) return reject(error);
+      if (!result?.secure_url) return reject(new Error('Cloudinary did not return a secure certificate URL.'));
+      return resolve(result);
+    }).end(buffer);
+  });
+}
+
 export async function deleteResume(publicId) {
   if (!configureCloudinary()) {
     const error = new Error('Cloudinary resume storage is not configured.');
@@ -44,6 +67,20 @@ export async function deleteResume(publicId) {
   const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'raw', type: 'upload' });
   if (!['ok', 'not found'].includes(result.result)) {
     throw new Error('Cloudinary did not confirm resume deletion.');
+  }
+  return result;
+}
+
+export async function deleteCertificate(publicId, mediaType) {
+  if (!configureCloudinary()) {
+    const error = new Error('Cloudinary certificate storage is not configured.');
+    error.statusCode = 503;
+    throw error;
+  }
+  const resourceType = mediaType === 'application/pdf' ? 'raw' : 'image';
+  const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType, type: 'upload' });
+  if (!['ok', 'not found'].includes(result.result)) {
+    throw new Error('Cloudinary did not confirm certificate deletion.');
   }
   return result;
 }

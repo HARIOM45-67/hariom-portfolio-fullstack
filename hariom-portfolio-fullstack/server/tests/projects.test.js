@@ -53,6 +53,7 @@ describe('project API', () => {
       name: 'Portfolio API',
       description: 'A project record created for the portfolio integration test.',
       problemSolved: 'Makes project details easy to publish and maintain.',
+      features: ['Portfolio project records', 'Admin-managed project publishing'],
       imageUrl: 'https://example.com/portfolio-api.png',
       stack: ['React', 'Express'],
       liveUrl: 'https://example.com/demo',
@@ -73,12 +74,14 @@ describe('project API', () => {
       .send(projectDetails);
     expect(created.status).toBe(201);
     expect(created.body.project.slug).toBe('portfolio-api');
+    expect(created.body.project.features).toEqual(projectDetails.features);
 
     const listed = await request(app).get('/api/projects');
     expect(listed.body.projects).toHaveLength(1);
     expect(listed.body.projects[0].name).toBe('Portfolio API');
     expect(listed.body.projects[0]).toMatchObject({
       problemSolved: projectDetails.problemSolved,
+      features: projectDetails.features,
       imageUrl: projectDetails.imageUrl
     });
 

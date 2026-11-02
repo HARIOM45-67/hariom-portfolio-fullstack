@@ -36,7 +36,7 @@ export default function AdminDashboard() {
     {summary && <div className="admin-stats">
       <article><span>Contact submissions</span><strong>{summary.contactSubmissions}</strong><Link to="/admin/queries">Manage queries →</Link></article>
       <article><span>Published projects</span><strong>{summary.projects}</strong><Link to="/admin/projects">Manage projects →</Link></article>
-      <article><span>Resume</span><strong>{summary.resume ? 'Admin-uploaded' : 'Default CV included'}</strong><Link to="/admin/resume">Manage resume →</Link></article>
+      <article><span>Resume</span><strong>{summary.resume ? 'Admin-uploaded' : 'Not published'}</strong><Link to="/admin/resume">Manage resume →</Link></article>
       <article><span>Unique visitors · last 30 days</span><strong>{summary.visitors}</strong></article>
       <article><span>Section views · last 30 days</span><strong>{summary.pageViews}</strong></article>
     </div>}

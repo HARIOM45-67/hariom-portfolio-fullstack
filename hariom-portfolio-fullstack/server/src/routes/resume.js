@@ -28,6 +28,11 @@ function publicResume(resume) {
   };
 }
 
+function resumeContentDisposition(filename, attachment) {
+  const safeName = filename.replace(/[\u0000-\u001f\u007f"\\]/g, '_') || 'resume.pdf';
+  return `${attachment ? 'attachment' : 'inline'}; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`;
+}
+
 router.get('/', async (_req, res, next) => {
   try {
     const resume = await Resume.findOne({ key: 'current' }).lean();
@@ -37,12 +42,40 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
-router.get('/download', async (_req, res, next) => {
+router.get('/download', async (req, res, next) => {
   try {
-    const resume = await Resume.findOne({ key: 'current' }).select('secureUrl').lean();
+    const resume = await Resume.findOne({ key: 'current' }).select('secureUrl originalName bytes').lean();
     if (!resume) return res.status(404).json({ message: 'No resume has been published.' });
+    const fileUrl = new URL(resume.secureUrl);
+    if (fileUrl.protocol !== 'https:' || fileUrl.hostname !== 'res.cloudinary.com') {
+      return next(new HttpError(502, 'The published resume file is unavailable.'));
+    }
+
+    let response;
+    try {
+      response = await fetch(fileUrl, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(10000),
+        headers: { Accept: 'application/pdf' }
+      });
+    } catch {
+      return next(new HttpError(502, 'The published resume file is temporarily unavailable.'));
+    }
+    if (!response.ok) return next(new HttpError(502, 'The published resume file is temporarily unavailable.'));
+    const contentLength = Number(response.headers.get('content-length'));
+    if (Number.isFinite(contentLength) && contentLength > 5 * 1024 * 1024) {
+      return next(new HttpError(502, 'The published resume file is invalid.'));
+    }
+    const file = Buffer.from(await response.arrayBuffer());
+    if (file.length === 0 || file.length > 5 * 1024 * 1024 || file.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      return next(new HttpError(502, 'The published resume file is invalid.'));
+    }
+
     res.set('Cache-Control', 'no-store');
-    return res.redirect(302, resume.secureUrl);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Length', String(file.length));
+    res.set('Content-Disposition', resumeContentDisposition(resume.originalName, req.query.attachment === '1'));
+    return res.send(file);
   } catch (error) {
     return next(error);
   }

@@ -10,6 +10,8 @@ import authRoutes from './routes/auth.js';
 import queryRoutes from './routes/queries.js';
 import resumeRoutes from './routes/resume.js';
 import projectRoutes from './routes/projects.js';
+import experienceRoutes from './routes/experience.js';
+import certificateRoutes from './routes/certificates.js';
 import githubRoutes from './routes/github.js';
 import analyticsRoutes from './routes/analytics.js';
 import HttpError from './utils/HttpError.js';
@@ -78,6 +80,8 @@ app.use('/api/queries', requireDatabase, queryRoutes);
 app.use('/api/contact', requireDatabase, queryRoutes);
 app.use('/api/resume', requireDatabase, resumeRoutes);
 app.use('/api/projects', requireDatabase, projectRoutes);
+app.use('/api/experience', requireDatabase, experienceRoutes);
+app.use('/api/certificates', requireDatabase, certificateRoutes);
 app.use('/api/github', requireDatabase, githubRoutes);
 app.use('/api/analytics', requireDatabase, analyticsRoutes);
 

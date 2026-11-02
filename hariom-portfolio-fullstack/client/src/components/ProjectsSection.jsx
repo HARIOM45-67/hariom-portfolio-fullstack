@@ -1,50 +1,64 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, ExternalLink, Github } from 'lucide-react';
+import { ArrowDown, ArrowUpRight, ExternalLink, Github } from 'lucide-react';
 import { api, getApiErrorMessage } from '../lib/api.js';
-import { githubRepositoryFallback } from '../data/github-repository-fallback.js';
 import ProjectPreview from './ProjectPreview.jsx';
+
+function secureHomepage(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+function formatDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+}
 
 export default function ProjectsSection() {
   const [projects, setProjects] = useState([]);
   const [repositories, setRepositories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [projectsError, setProjectsError] = useState('');
   const [repositoryError, setRepositoryError] = useState('');
-  const [usingRepositoryFallback, setUsingRepositoryFallback] = useState(false);
+  const [repositoryStale, setRepositoryStale] = useState(false);
+  const [expandedProjectId, setExpandedProjectId] = useState('');
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    async function loadProjects() {
+    async function load() {
       setLoading(true);
-      setError('');
+      setProjectsError('');
       setRepositoryError('');
-      setUsingRepositoryFallback(false);
-      try {
-        const response = await api.get('/api/projects', { signal: controller.signal });
-        setProjects(response.data.projects);
-      } catch (requestError) {
-        if (!controller.signal.aborted) {
-          setError(getApiErrorMessage(requestError, 'Unable to load projects.'));
-          setLoading(false);
-        }
-        return;
+      setRepositoryStale(false);
+
+      const [projectsResult, repositoriesResult] = await Promise.allSettled([
+        api.get('/api/projects', { signal: controller.signal }),
+        api.get('/api/github/repos', { signal: controller.signal })
+      ]);
+      if (controller.signal.aborted) return;
+
+      if (projectsResult.status === 'fulfilled') {
+        setProjects(projectsResult.value.data.projects || []);
+      } else {
+        setProjectsError(getApiErrorMessage(projectsResult.reason, 'Unable to load published projects.'));
       }
 
-      try {
-        const response = await api.get('/api/github/repos', { signal: controller.signal });
-        setRepositories(response.data.repositories);
-      } catch (requestError) {
-        if (!controller.signal.aborted) {
-          setRepositoryError(getApiErrorMessage(requestError, 'Unable to load GitHub repositories.'));
-          setRepositories(githubRepositoryFallback);
-          setUsingRepositoryFallback(true);
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
+      if (repositoriesResult.status === 'fulfilled') {
+        setRepositories(repositoriesResult.value.data.repositories || []);
+        setRepositoryStale(repositoriesResult.value.headers['x-github-cache'] === 'stale');
+      } else {
+        setRepositoryError(getApiErrorMessage(repositoriesResult.reason, 'Unable to load GitHub repositories.'));
       }
+      setLoading(false);
     }
-    loadProjects();
+
+    load();
     return () => controller.abort();
   }, [reload]);
 
@@ -59,12 +73,12 @@ export default function ProjectsSection() {
       id: `github-${repository.id}`,
       name: repository.name,
       slug: `github-${repository.id}`,
-      description: repository.description
-        || 'Public GitHub repository. Explore the source code and implementation details.',
+      description: repository.description || '',
       problemSolved: '',
+      features: [],
       imageUrl: '',
       stack: repository.language ? [repository.language] : [],
-      liveUrl: '',
+      liveUrl: secureHomepage(repository.homepage),
       repoUrl: repository.html_url,
       featured: false,
       githubRepository: true,
@@ -75,36 +89,65 @@ export default function ProjectsSection() {
   const displayedProjects = [...projects, ...repositoryProjects];
 
   return <>
-    {loading && <p className="muted-text" role="status">Loading published projects…</p>}
-    {error && <div className="notice" role="alert">{error} <button className="text-button" onClick={() => setReload(value => value + 1)}>Retry</button></div>}
-    {!loading && repositoryError && projects.length > 0 && <p className="notice" role="status">{usingRepositoryFallback ? 'Live GitHub data is temporarily unavailable; showing the saved public repository list.' : repositoryError} <button className="text-button" onClick={() => setReload(value => value + 1)}>Retry</button></p>}
-    {!loading && repositoryError && projects.length === 0 && usingRepositoryFallback && <p className="notice" role="status">Live GitHub data is temporarily unavailable; showing the saved public repository list. <button className="text-button" onClick={() => setReload(value => value + 1)}>Retry</button></p>}
-    {!loading && repositoryError && projects.length === 0 && !usingRepositoryFallback && <div className="notice project-empty" role="alert">{repositoryError} Projects will appear when GitHub is reachable. <button className="text-button" onClick={() => setReload(value => value + 1)}>Retry</button></div>}
-    {!loading && !error && !repositoryError && displayedProjects.length === 0 && <p className="muted-text project-empty">No projects have been published and no public repositories are available.</p>}
-    {!loading && !error && displayedProjects.length > 0 && <div className="project-grid">
+    {loading && <p className="muted-text project-loading" role="status">Loading published projects and verified GitHub repositories…</p>}
+    {!loading && projectsError && <p className="notice" role="alert">{projectsError} <button className="text-button" onClick={() => setReload(value => value + 1)}>Retry</button></p>}
+    {!loading && repositoryError && <p className="notice" role="alert">{repositoryError} <button className="text-button" onClick={() => setReload(value => value + 1)}>Retry</button></p>}
+    {!loading && repositoryStale && <p className="muted-text" role="status">Showing the most recently saved public GitHub data while GitHub is temporarily unavailable.</p>}
+    {!loading && !projectsError && !repositoryError && displayedProjects.length === 0 && <p className="muted-text project-empty">No projects have been published and no public repositories are available.</p>}
+    {!loading && displayedProjects.length > 0 && <div className="project-grid">
       {displayedProjects.map((project, index) => {
         const primaryUrl = project.liveUrl || project.repoUrl;
+        const detailsId = `project-details-${project.slug}`;
+        const isExpanded = expandedProjectId === project.id;
+        const features = project.features || [];
+        const techStack = project.stack || [];
         return <article className="project-card" key={project.id} data-analytics-project={project.slug}>
           <div className={`project-art art-${(index % 3) + 1}${project.imageUrl ? ' has-screenshot' : ' has-preview'}`}>
             {project.imageUrl
               ? <img className="project-screenshot" src={project.imageUrl} alt={`${project.name} project screenshot`} loading="lazy" />
               : <ProjectPreview project={project}/>}
-            <span>{project.imageUrl ? `PROJECT / ${String(index + 1).padStart(2, '0')}` : 'ILLUSTRATIVE PREVIEW · NOT A SCREENSHOT'}</span>
+            {project.imageUrl && <span>PROJECT / {String(index + 1).padStart(2, '0')}</span>}
           </div>
           <div className="project-content">
-            <div className="project-title"><div><small>PROJECT</small><h3>{project.name}</h3></div>
+            <div className="project-title">
+              <div><small>{project.githubRepository ? 'PUBLIC REPOSITORY' : project.featured ? 'FEATURED PROJECT' : 'PROJECT'}</small><h3>{project.name}</h3></div>
               {primaryUrl && <a href={primaryUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${project.name}`}><ArrowUpRight/></a>}
             </div>
-            <p>{project.description}</p>
-            {project.problemSolved && <p className="project-problem"><strong>Problem solved:</strong> {project.problemSolved}</p>}
-            {project.stack.length > 0 && <div className="tags">{project.stack.map(tag => <span key={tag}>{tag}</span>)}</div>}
+            {(project.description || project.githubRepository) && <p>{project.description || 'No description is published for this repository.'}</p>}
+            {project.problemSolved && <p className="project-problem"><strong>Project focus:</strong> {project.problemSolved}</p>}
+            {techStack.length > 0 && <div className="tags">{techStack.map(tag => <span key={tag}>{tag}</span>)}</div>}
             {project.githubRepository && <div className="project-repo-stats">
               {project.stars !== null && <span>{project.stars} stars</span>}
               {project.forks !== null && <span>{project.forks} forks</span>}
-              {project.updatedAt && <time dateTime={project.updatedAt}>Updated {new Date(project.updatedAt).toLocaleDateString()}</time>}
+              {formatDate(project.updatedAt) && <time dateTime={project.updatedAt}>Updated {formatDate(project.updatedAt)}</time>}
+            </div>}
+            <button
+              className="project-details-toggle"
+              type="button"
+              aria-expanded={isExpanded}
+              aria-controls={detailsId}
+              onClick={() => setExpandedProjectId(isExpanded ? '' : project.id)}
+            >
+              {isExpanded ? 'Hide details' : 'Project details'} <ArrowDown size={14} aria-hidden="true"/>
+            </button>
+            {isExpanded && <div className="project-details" id={detailsId}>
+              <h4>Project details</h4>
+              {project.githubRepository
+                ? <p>{project.description || 'The repository owner has not published a description.'}</p>
+                : project.problemSolved && <p><strong>Project focus:</strong> {project.problemSolved}</p>}
+              <h5>Features</h5>
+              {features.length > 0
+                ? <ul>{features.map(feature => <li key={feature}>{feature}</li>)}</ul>
+                : <p>{project.githubRepository
+                  ? 'No verified feature list is available in GitHub repository metadata.'
+                  : 'No feature list has been published for this project.'}</p>}
+              <h5>Technology stack</h5>
+              {techStack.length > 0
+                ? <div className="tags">{techStack.map(tag => <span key={tag}>{tag}</span>)}</div>
+                : <p>No technology stack has been published.</p>}
             </div>}
             {(project.liveUrl || project.repoUrl) && <div className="project-links">
-              {project.liveUrl && <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">Live demo <ExternalLink size={13}/></a>}
+              {project.liveUrl && <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">Live site <ExternalLink size={13}/></a>}
               {project.repoUrl && <a href={project.repoUrl} target="_blank" rel="noopener noreferrer">Source code <Github size={13}/></a>}
             </div>}
           </div>

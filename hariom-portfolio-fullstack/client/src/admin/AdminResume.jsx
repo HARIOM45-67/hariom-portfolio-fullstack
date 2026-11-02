@@ -82,7 +82,8 @@ export default function AdminResume() {
     {!loading && resume && <article className="admin-record">
       <h2>{resume.originalName}</h2>
       <p>{(resume.bytes / (1024 * 1024)).toFixed(2)} MB · Uploaded {new Date(resume.uploadedAt).toLocaleString()}</p>
-      <a className="button secondary" href={api.getUri({ url: resume.downloadUrl })} target="_blank" rel="noopener noreferrer">Preview / download</a>
+      <a className="button secondary" href={api.getUri({ url: resume.downloadUrl })} target="_blank" rel="noopener noreferrer">View resume</a>
+      <a className="button primary" href={api.getUri({ url: `${resume.downloadUrl}?attachment=1` })}>Download PDF</a>
       <button className="button danger" disabled={busy} onClick={removeResume}>Delete resume</button>
     </article>}
     {!loading && !resume && !error && <p className="muted-text">No resume has been published.</p>}

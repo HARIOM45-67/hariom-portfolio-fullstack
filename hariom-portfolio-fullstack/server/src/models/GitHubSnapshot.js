@@ -17,6 +17,8 @@ const githubRepositorySchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, default: null },
   language: { type: String, default: null },
+  homepage: { type: String, default: null },
+  isPublic: { type: Boolean, required: true, default: false },
   stargazers_count: { type: Number, required: true },
   forks_count: { type: Number, required: true },
   html_url: { type: String, required: true },

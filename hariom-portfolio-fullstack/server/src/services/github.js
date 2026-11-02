@@ -6,6 +6,16 @@ const staleDuration = 60 * 60 * 1000;
 let cache;
 let inFlight;
 
+function secureHomepage(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function githubHeaders() {
   const headers = {
     Accept: 'application/vnd.github+json',
@@ -65,12 +75,13 @@ async function fetchProfileAndRepos(username) {
     created_at: profile.created_at
   };
   const cleanRepositories = repositories
-    .filter(repository => !repository.fork)
+    .filter(repository => repository.private === false && !repository.fork)
     .map(repository => ({
       id: repository.id,
       name: repository.name,
       description: repository.description,
       language: repository.language,
+      homepage: secureHomepage(repository.homepage),
       stargazers_count: repository.stargazers_count,
       forks_count: repository.forks_count,
       html_url: repository.html_url,
@@ -80,8 +91,7 @@ async function fetchProfileAndRepos(username) {
 }
 
 export async function getGitHubData() {
-  const username = process.env.GITHUB_USERNAME?.trim();
-  if (!username) throw new HttpError(503, 'GitHub integration is not configured.');
+  const username = process.env.GITHUB_USERNAME?.trim() || 'HARIOM45-67';
   if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(username)) {
     throw new HttpError(503, 'The configured GitHub username is invalid.');
   }
@@ -98,7 +108,13 @@ export async function getGitHubData() {
       try {
         await GitHubSnapshot.findOneAndUpdate(
           { username: username.toLowerCase() },
-          { $set: { profile: data.profile, repositories: data.repositories, fetchedAt: new Date() } },
+          {
+            $set: {
+              profile: data.profile,
+              repositories: data.repositories.map(repository => ({ ...repository, isPublic: true })),
+              fetchedAt: new Date()
+            }
+          },
           { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
         );
       } catch (error) {
@@ -124,7 +140,10 @@ export async function getGitHubData() {
         console.error('Unable to load the persisted GitHub snapshot:', storageError);
       }
       if (snapshot) {
-        const data = { profile: snapshot.profile, repositories: snapshot.repositories };
+        const data = {
+          profile: snapshot.profile,
+          repositories: snapshot.repositories.filter(repository => repository.isPublic === true)
+        };
         cache = {
           username,
           data,

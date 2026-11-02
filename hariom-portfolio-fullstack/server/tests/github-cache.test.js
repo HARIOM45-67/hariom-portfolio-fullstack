@@ -51,16 +51,31 @@ describe('persisted GitHub snapshot fallback', () => {
         following: 0,
         created_at: '2020-01-01T00:00:00Z'
       },
-      repositories: [{
-        id: 98765,
-        name: 'hariom-portfolio',
-        description: 'A portfolio project.',
-        language: 'JavaScript',
-        stargazers_count: 2,
-        forks_count: 1,
-        html_url: `https://github.com/${username}/hariom-portfolio`,
-        updated_at: '2026-10-30T00:00:00Z'
-      }],
+      repositories: [
+        {
+          id: 98765,
+          name: 'hariom-portfolio',
+          description: 'A portfolio project.',
+          language: 'JavaScript',
+          homepage: 'https://hariom-portfolio.vercel.app/',
+          isPublic: true,
+          stargazers_count: 2,
+          forks_count: 1,
+          html_url: `https://github.com/${username}/hariom-portfolio`,
+          updated_at: '2026-10-30T00:00:00Z'
+        },
+        {
+          id: 98766,
+          name: 'private-test-repository',
+          description: 'Must not be exposed from an old snapshot.',
+          language: 'JavaScript',
+          isPublic: false,
+          stargazers_count: 0,
+          forks_count: 0,
+          html_url: `https://github.com/${username}/private-test-repository`,
+          updated_at: '2026-10-30T00:00:00Z'
+        }
+      ],
       fetchedAt: new Date('2026-10-30T00:00:00Z')
     });
 
@@ -71,7 +86,9 @@ describe('persisted GitHub snapshot fallback', () => {
     expect(response.headers.warning).toContain('Response is stale');
     expect(response.body.repositories).toMatchObject([{
       name: 'hariom-portfolio',
+      homepage: 'https://hariom-portfolio.vercel.app/',
       html_url: `https://github.com/${username}/hariom-portfolio`
     }]);
+    expect(response.body.repositories).toHaveLength(1);
   });
 });

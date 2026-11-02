@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowUpRight, Award, BookOpen, Braces, BriefcaseBusiness, ChefHat, Code2, Database,
-  Globe2, Github, HeartHandshake, Instagram, Layers3, Linkedin, Mail, MapPin, Menu,
+  ArrowUpRight, BookOpen, Braces, BriefcaseBusiness, ChefHat, Code2, Database,
+  Github, HeartHandshake, Instagram, Layers3, Linkedin, Mail, MapPin, Menu,
   MessageCircle, Moon, Send, Sparkles, Sun, Wrench, X, Youtube
 } from 'lucide-react';
 import { profile } from './data/profile.js';
-import { certificates } from './data/certificates.js';
 import { articles } from './data/articles.js';
 import { api, getApiErrorMessage } from './lib/api.js';
 import SectionTitle from './components/SectionTitle.jsx';
@@ -13,6 +12,8 @@ import GitHubSection from './components/GitHub.jsx';
 import ContactForm from './components/ContactForm.jsx';
 import ProjectsSection from './components/ProjectsSection.jsx';
 import ResumeSection from './components/ResumeSection.jsx';
+import ExperienceSection from './components/ExperienceSection.jsx';
+import CertificatesSection from './components/CertificatesSection.jsx';
 
 const primaryNavigation = ['about', 'skills', 'projects', 'experience', 'contact'];
 const additionalNavigation = [
@@ -61,11 +62,18 @@ const socialProfiles = [
   { name: 'WhatsApp', url: 'https://wa.me/917859031017', icon: MessageCircle }
 ];
 const codingProfiles = [
+  { name: 'GitHub', url: 'https://github.com/HARIOM45-67', icon: Github },
+  { name: 'LinkedIn', url: 'https://www.linkedin.com/in/hariom-tiwari-913a8537a/', icon: Linkedin },
   { name: 'LeetCode', url: 'https://leetcode.com/u/hariom45_67/', icon: Code2 },
-  { name: 'W3Schools', url: 'https://pathfinder.w3schools.com/profile', icon: Globe2 },
   { name: 'CodeChef', url: 'https://www.codechef.com/users/public_flag_23', icon: ChefHat },
   { name: 'GeeksforGeeks', url: 'https://www.geeksforgeeks.org/profile/dlerbr0td8', icon: Braces }
-];
+].filter(profile => {
+  try {
+    return new URL(profile.url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+});
 const professionalProfiles = [
   { name: 'Freelancer', url: 'https://www.freelancer.com/insights/', description: 'Professional profile and insights', icon: BriefcaseBusiness }
 ];
@@ -107,14 +115,10 @@ export default function App() {
       return 'dark';
     }
   });
-  const [resume, setResume] = useState({
-    originalName: 'Hariom Tiwari Resume.pdf',
-    downloadUrl: '/resume.pdf',
-    uploadedAt: null,
-    isLocal: true
-  });
+  const [resume, setResume] = useState(null);
   const [resumeLoading, setResumeLoading] = useState(true);
   const [resumeError, setResumeError] = useState('');
+  const [resumeReload, setResumeReload] = useState(0);
   const [analyticsConsent, setAnalyticsConsent] = useState(null);
   const [analyticsPromptOpen, setAnalyticsPromptOpen] = useState(true);
   const [analyticsError, setAnalyticsError] = useState('');
@@ -147,13 +151,10 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
+    setResumeLoading(true);
+    setResumeError('');
     api.get('/api/resume', { signal: controller.signal })
-      .then(response => setResume(response.data.resume || {
-        originalName: 'Hariom Tiwari Resume.pdf',
-        downloadUrl: '/resume.pdf',
-        uploadedAt: null,
-        isLocal: true
-      }))
+      .then(response => setResume(response.data.resume))
       .catch(error => {
         if (!controller.signal.aborted) {
           setResumeError(getApiErrorMessage(error, 'Unable to check resume availability.'));
@@ -163,7 +164,7 @@ export default function App() {
         if (!controller.signal.aborted) setResumeLoading(false);
       });
     return () => controller.abort();
-  }, []);
+  }, [resumeReload]);
 
   useEffect(() => {
     if (analyticsConsent !== true) return undefined;
@@ -257,8 +258,8 @@ export default function App() {
           <div className="hero-buttons">
             <a className="button primary" href="#projects">View projects <ArrowUpRight size={16}/></a>
             {resume?.downloadUrl
-              ? <a className="button secondary" href={resume.isLocal ? resume.downloadUrl : api.getUri({ url: resume.downloadUrl })} download>Download resume ↓</a>
-              : <a className="button secondary" href="#resume">Resume details ↓</a>}
+              ? <><a className="button secondary" href={api.getUri({ url: resume.downloadUrl })} target="_blank" rel="noopener noreferrer">View resume <ArrowUpRight size={15}/></a><a className="button secondary" href={api.getUri({ url: `${resume.downloadUrl}?attachment=1` })}>Download PDF ↓</a></>
+              : <a className="button secondary" href="#resume">{resumeLoading ? 'Checking resume…' : 'Resume details ↓'}</a>}
           </div>
           <div className="hero-socials" aria-label="Social profiles">
             <a href="https://github.com/HARIOM45-67" target="_blank" rel="noopener noreferrer"><Github size={17}/> GitHub <ArrowUpRight size={13}/></a>
@@ -299,17 +300,7 @@ export default function App() {
 
       <section className="section wrap" id="experience">
         <SectionTitle number="04" eyebrow="EXPERIENCE" title="Learning through" muted="hands-on experience."/>
-        <div className="experience-list">{profile.experience.length > 0 ? profile.experience.map(item => {
-          const dateRange = item.startDate && item.endDate
-            ? `${item.startDate} – ${item.endDate}`
-            : item.startDate || item.endDate;
-          return <article className="experience-card" key={item.organization}>
-            <div className="experience-heading"><div><h3>{item.organization}</h3>{item.position && <p>{item.position}</p>}</div>{dateRange && <span>{dateRange}</span>}</div>
-            {item.description
-              ? <p className="experience-description">{item.description}</p>
-              : <p className="muted-text">Role, responsibilities and dates will be added when confirmed.</p>}
-          </article>;
-        }) : <p className="muted-text">Experience details will be shared here when available.</p>}</div>
+        <ExperienceSection fallback={profile.experience}/>
       </section>
 
       <section className="section wrap" id="education">
@@ -327,16 +318,7 @@ export default function App() {
 
       <section className="section wrap" id="certifications">
         <SectionTitle number="06" eyebrow="CERTIFICATES & ACHIEVEMENTS" title="Proof of learning" muted="and opportunities earned."/>
-        {certificates.length > 0
-          ? <div className="certificate-grid">{certificates.map(certificate => <article className="certificate-card" key={certificate.fileUrl}>
-            <div className="certificate-card-top"><span className="certificate-icon"><Award size={21}/></span><span className="certificate-label">VERIFIED CERTIFICATE</span></div>
-            <h3>{certificate.title}</h3>
-            <p className="certificate-issuer">{certificate.issuer}</p>
-            <p className="certificate-description">{certificate.description}</p>
-            <div className="tags">{certificate.skills.map(skill => <span key={skill}>{skill}</span>)}</div>
-            <div className="certificate-footer"><time>{certificate.issuedOn}</time><a className="button secondary" href={certificate.fileUrl} target="_blank" rel="noopener noreferrer">View certificate <ArrowUpRight size={15}/></a></div>
-          </article>)}</div>
-          : <div className="empty-feature-card"><Award size={25}/><h3>No verified certificates yet</h3><p>Certificates will appear here after they have been added.</p></div>}
+        <CertificatesSection/>
       </section>
 
       <section className="section wrap" id="github">
@@ -375,7 +357,7 @@ export default function App() {
 
       <section className="section wrap" id="resume">
         <SectionTitle number="12" eyebrow="RESUME" title="Interested in my" muted="experience?"/>
-        <ResumeSection resume={resume} loading={resumeLoading} error={resumeError}/>
+        <ResumeSection resume={resume} loading={resumeLoading} error={resumeError} onRetry={() => setResumeReload(value => value + 1)}/>
       </section>
 
       <section className="section wrap testimonials-section" id="testimonials">

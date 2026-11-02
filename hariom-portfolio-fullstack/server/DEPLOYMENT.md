@@ -60,10 +60,10 @@ Vercel sets `NODE_ENV=production` for production deployments. For the separate V
 
 | Variable(s) | Purpose |
 | --- | --- |
-| `GITHUB_USERNAME` | Enables the GitHub profile/repository API. |
+| `GITHUB_USERNAME` | Backend GitHub profile/repository account; defaults to `HARIOM45-67`. |
 | `GITHUB_TOKEN` | Optional server-only GitHub token to increase API rate limits. Never expose it as a `VITE_` variable. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `CONTACT_RECEIVER` | Optional contact-form email notifications. Submissions are still saved in MongoDB when email is not configured. |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Required together to enable admin resume uploads to Cloudinary. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Required together for admin resume and certificate file uploads to Cloudinary. |
 | `COOKIE_SAME_SITE`, `COOKIE_DOMAIN` | Optional cookie policy overrides; keep production cookies secure and use a cookie domain only for a domain you control. |
 | `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | One-time admin creation inputs only. Run the setup command in a trusted environment, then remove both variables. Do not leave them configured in Vercel. |
 | `PORT` | Local server port only; Vercel supplies the request runtime. |
@@ -76,6 +76,8 @@ Vercel sets `NODE_ENV=production` for production deployments. For the separate V
 4. Deploy and verify `GET https://<backend-domain>/api/health` returns HTTP 200 with `"status":"ok"` and `"database":"connected"`.
 
 The app reuses Mongoose's established connection in warm instances and shares concurrent connection attempts. A failed initial connection is not cached permanently; later requests can retry. Database-dependent API requests return HTTP 503 when MongoDB is unavailable.
+
+The database name is selected from the database path in `MONGODB_URI`; the application does not override it. If the URI has no database path, MongoDB drivers may select the default `test` database. For this project, the URI path must select `portfolio` (for example, the path immediately after the Atlas host is `/portfolio`, before any `?` options). A previous runtime diagnostic reported `test`, so verify and correct the Render environment value without copying it into logs or chat. The read-only `npm run diagnose:database` command connects using the configured URI and reports only the active database name, expected database, and match status; it never prints the URI or queries/modifies records.
 
 ## Frontend Vercel settings
 
@@ -99,10 +101,9 @@ Add these **frontend-project** environment variables for Production (and appropr
 ```text
 VITE_API_URL=https://<backend-domain>
 VITE_SITE_URL=https://<frontend-domain>
-VITE_GITHUB_USERNAME=HARIOM45-67
 ```
 
-Set `VITE_API_URL` to the backend origin only, without an `/api` suffix. The frontend already appends its existing `/api/...` paths and sends credentials for admin cookie authentication. `VITE_SITE_URL` must be the frontend origin without a trailing slash; Vite uses it for the canonical and Open Graph URLs. Update `client/public/robots.txt` and `client/public/sitemap.xml` to the final frontend domain before deployment. `VITE_GITHUB_USERNAME` is public profile configuration, not a secret.
+Set `VITE_API_URL` to the backend origin only, without an `/api` suffix. The frontend already appends its existing `/api/...` paths and sends credentials for admin cookie authentication. `VITE_SITE_URL` must be the frontend origin without a trailing slash; Vite uses it for the canonical and Open Graph URLs. Update `client/public/robots.txt` and `client/public/sitemap.xml` to the final frontend domain before deployment. GitHub account configuration belongs on the backend; the frontend never needs a GitHub token.
 
 Then set the frontend's exact origin in the backend's `CLIENT_ORIGIN`, redeploy the backend, and redeploy the frontend after setting its Vite variables. CORS and authentication-origin checks use exact origins; do not use `*`. Vercel preview domains should be added explicitly when needed rather than allowing every preview origin. The production API deliberately fails closed for browser requests if `CLIENT_ORIGIN` is absent or does not exactly match the frontend origin.
 
@@ -119,20 +120,20 @@ The local admin account is in the local MongoDB database and is **not** copied t
 - Keep secrets out of all `VITE_*` variables, frontend builds, Git, screenshots, and deployment logs. `VITE_*` values are shipped to browsers and are public.
 - Use a separate production Atlas database. Never point production at the local development database or run test suites against production.
 - Production CORS requires exact HTTPS origins. Never use `*`; add only known preview origins to their matching non-production environments.
-- The project currently has no shared distributed rate-limit store; the in-memory limiter is per function instance and is not a global production abuse quota.
+- The project currently has no shared distributed rate-limit store. In-memory counters reset when an instance restarts and are not shared across instances, so they are not a coordinated production abuse quota.
 
 ## Go-live checklist
 
 - [ ] Choose the final frontend and backend domains. Configure DNS and HTTPS in Vercel.
 - [ ] Create a dedicated MongoDB Atlas production cluster/database and least-privilege app user; configure the supported Vercel network path.
 - [ ] Create the backend Vercel project with Root Directory `hariom-portfolio-fullstack/server`; deploy with backend-only environment variables.
-- [ ] Create the frontend Vercel project with Root Directory `hariom-portfolio-fullstack/client`; deploy with `VITE_API_URL`, `VITE_SITE_URL`, and `VITE_GITHUB_USERNAME`.
+- [ ] Create the frontend Vercel project with Root Directory `hariom-portfolio-fullstack/client`; deploy with `VITE_API_URL` and `VITE_SITE_URL`.
 - [ ] Set backend `CLIENT_ORIGIN` to the exact production frontend origin; redeploy the backend after environment changes.
 - [ ] Update robots.txt and sitemap.xml to the final frontend domain; verify the generated canonical/Open Graph URL.
 - [ ] Provision the production admin only after confirming the Atlas admin count is zero; clear one-time credentials immediately.
 - [ ] Test live API health (`/api/health` must return HTTP 200 and `database: connected`), frontend root and deep links, CORS preflight, admin login/session/logout, protected dashboard routes, contact persistence, and project CRUD.
-- [ ] Confirm the resume endpoint and download behavior. Configure Cloudinary before expecting admin resume uploads; verify any published resume before launch.
-- [ ] Verify GitHub integration against the configured public username and review Vercel runtime logs for errors.
+- [ ] Confirm admin experience and certificate publishing, plus resume PDF upload, view, and download. Configure Cloudinary before expecting resume or certificate uploads; verify published files before launch.
+- [ ] Verify GitHub integration against the backend `GITHUB_USERNAME` (defaults to `HARIOM45-67`) and review backend runtime logs for errors.
 - [ ] Submit a real contact form only after confirming the production recipient and mail configuration; otherwise verify a controlled test submission and remove it.
 - [ ] Confirm no environment secrets appear in Git, frontend assets, or logs. Record live URLs and smoke-test results before announcing deployment.
 
@@ -160,4 +161,4 @@ The local API listens on `http://localhost:5000`; check `http://localhost:5000/a
 
 - Deployment is not performed or verified by these repository changes. Vercel project creation, final production domains, environment variables, Atlas network access, and live health checks must be completed in your accounts.
 - SMTP notifications and Cloudinary resume uploads remain optional and need their respective credentials.
-- The in-memory rate-limit store is local to each running function instance; it is not a shared global quota across serverless instances. Keep Vercel's platform protections enabled and consider a shared limiter store if abuse across many instances becomes a concern.
+- Keep Vercel's platform protections enabled and consider a shared limiter store if abuse across many instances becomes a concern.

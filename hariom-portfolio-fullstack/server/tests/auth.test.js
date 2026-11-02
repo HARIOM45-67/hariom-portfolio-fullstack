@@ -1,14 +1,18 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { connectDatabase } from '../src/config/database.js';
 import app from '../src/app.js';
 import Admin from '../src/models/Admin.js';
+import { authCookieName } from '../src/middleware/auth.js';
 
 let mongo;
 const previousSecret = process.env.JWT_SECRET;
+const previousNodeEnv = process.env.NODE_ENV;
 const testOrigin = 'http://localhost:5173';
+const productionOrigin = 'https://hariom-portfolio-fullstack.vercel.app';
 
 beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret-with-more-than-thirty-two-bytes';
@@ -26,6 +30,8 @@ afterAll(async () => {
   if (mongo) await mongo.stop();
   if (previousSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = previousSecret;
+  if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = previousNodeEnv;
 });
 
 describe('admin authentication', () => {
@@ -63,6 +69,10 @@ describe('admin authentication', () => {
     expect(login.body.admin.password).toBeUndefined();
     expect(login.headers['set-cookie'][0]).toContain('HttpOnly');
     expect(login.headers['set-cookie'][0]).toContain('SameSite=Lax');
+    const cookie = login.headers['set-cookie'][0].split(';')[0];
+    const token = cookie.slice(cookie.indexOf('=') + 1);
+    const payload = jwt.decode(token);
+    expect(payload.exp - payload.iat).toBe(8 * 60 * 60);
 
     const authenticated = await agent.get('/api/auth/me');
     expect(authenticated.status).toBe(200);
@@ -71,6 +81,45 @@ describe('admin authentication', () => {
     const logout = await agent.post('/api/auth/logout').set('Origin', testOrigin);
     expect(logout.status).toBe(204);
     expect((await agent.get('/api/auth/me')).status).toBe(401);
+    expect((await request(app).get('/api/auth/me').set('Cookie', cookie)).status).toBe(401);
+  });
+
+  it('rejects an expired signed session token', async () => {
+    const admin = await Admin.create({ email: 'admin@example.com', password: 'a-strong-password-123' });
+    const expiredToken = jwt.sign(
+      { ver: admin.tokenVersion },
+      process.env.JWT_SECRET,
+      { subject: admin.id, issuer: 'hariom-potofolio', algorithm: 'HS256', expiresIn: -1 }
+    );
+
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', `${authCookieName}=${expiredToken}`);
+
+    expect(response.status).toBe(401);
+  });
+
+  it('sets production cookies with Secure, HttpOnly, and SameSite=None', async () => {
+    await Admin.create({ email: 'admin@example.com', password: 'a-strong-password-123' });
+    const previousTestNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    try {
+      const login = await request(app)
+        .post('/api/auth/login')
+        .set('Origin', productionOrigin)
+        .send({ email: 'admin@example.com', password: 'a-strong-password-123' });
+
+      expect(login.status).toBe(200);
+      expect(login.headers['set-cookie'][0]).toContain('HttpOnly');
+      expect(login.headers['set-cookie'][0]).toContain('Secure');
+      expect(login.headers['set-cookie'][0]).toContain('SameSite=None');
+      expect(login.headers['set-cookie'][0]).toContain('Path=/api');
+      expect(login.headers['set-cookie'][0]).toContain('Max-Age=28800');
+    } finally {
+      if (previousTestNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousTestNodeEnv;
+    }
   });
 
   it('rejects invalid credentials and disallowed login origins', async () => {

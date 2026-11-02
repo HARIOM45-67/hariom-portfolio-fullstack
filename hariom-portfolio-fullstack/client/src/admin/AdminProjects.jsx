@@ -5,6 +5,7 @@ const blankProject = {
   name: '',
   description: '',
   problemSolved: '',
+  features: '',
   imageUrl: '',
   stack: '',
   liveUrl: '',
@@ -17,6 +18,7 @@ function projectPayload(form) {
   return {
     ...form,
     stack: form.stack.split(',').map(value => value.trim()).filter(Boolean),
+    features: form.features.split(/\r?\n/).map(value => value.trim()).filter(Boolean),
     displayOrder: Number(form.displayOrder)
   };
 }
@@ -52,6 +54,7 @@ export default function AdminProjects() {
       name: project.name,
       description: project.description,
       problemSolved: project.problemSolved || '',
+      features: (project.features || []).join('\n'),
       imageUrl: project.imageUrl || '',
       stack: project.stack.join(', '),
       liveUrl: project.liveUrl,
@@ -107,6 +110,7 @@ export default function AdminProjects() {
       <label htmlFor="project-name">Project name<input id="project-name" required minLength="2" maxLength="100" value={form.name} onChange={event => setForm(value => ({ ...value, name: event.target.value }))}/></label>
       <label htmlFor="project-description">Description<textarea id="project-description" required minLength="10" maxLength="2000" rows="4" value={form.description} onChange={event => setForm(value => ({ ...value, description: event.target.value }))}/></label>
       <label htmlFor="project-problem">Problem solved<textarea id="project-problem" maxLength="1000" rows="3" value={form.problemSolved} onChange={event => setForm(value => ({ ...value, problemSolved: event.target.value }))}/></label>
+      <label htmlFor="project-features">Verified features (one per line)<textarea id="project-features" maxLength="4000" rows="4" value={form.features} onChange={event => setForm(value => ({ ...value, features: event.target.value }))}/></label>
       <label htmlFor="project-image">Project screenshot URL<input id="project-image" type="url" placeholder="https://" value={form.imageUrl} onChange={event => setForm(value => ({ ...value, imageUrl: event.target.value }))}/></label>
       <label htmlFor="project-stack">Technologies (comma separated)<input id="project-stack" value={form.stack} onChange={event => setForm(value => ({ ...value, stack: event.target.value }))}/></label>
       <div className="form-row">
