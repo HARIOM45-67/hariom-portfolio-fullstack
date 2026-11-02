@@ -90,7 +90,7 @@ describe('admin authentication', () => {
     expect(disallowedOrigin.status).toBe(403);
   });
 
-  it('logs only non-sensitive lookup and bcrypt results when login diagnostics are enabled', async () => {
+  it('logs only the versioned runtime lookup metadata when an admin lookup fails', async () => {
     await Admin.create({ email: 'admin@example.com', password: 'a-strong-password-123' });
     const previousDiagnostics = process.env.ADMIN_LOGIN_DIAGNOSTICS;
     process.env.ADMIN_LOGIN_DIAGNOSTICS = 'true';
@@ -109,28 +109,22 @@ describe('admin authentication', () => {
         .send({ email: 'ADMIN@example.com', password: 'incorrect-password' });
       expect(passwordMismatch.status).toBe(401);
 
-      expect(diagnosticLog).toHaveBeenCalledTimes(2);
-      for (const [message, diagnostic] of diagnosticLog.mock.calls) {
-        expect(message).toBe('Admin login diagnostic');
-        expect(diagnostic).toMatchObject({
-          activeDatabase: mongoose.connection.name,
-          modelDatabase: Admin.db.name,
-          collectionName: Admin.collection.collectionName,
-          adminCount: 1,
-          modelUsesActiveConnection: true,
-          modelDatabaseMatchesActiveConnection: true
-        });
-        expect(diagnostic).not.toHaveProperty('email');
-        expect(diagnostic).not.toHaveProperty('password');
-        expect(diagnostic).not.toHaveProperty('hash');
-      }
-      expect(diagnosticLog.mock.calls.map(([, diagnostic]) => ({
-        adminFound: diagnostic.adminFound,
-        passwordMatched: diagnostic.passwordMatched
-      }))).toEqual([
-        { adminFound: false, passwordMatched: null },
-        { adminFound: true, passwordMatched: false }
-      ]);
+      expect(diagnosticLog).toHaveBeenCalledTimes(1);
+      expect(diagnosticLog).toHaveBeenCalledWith('ADMIN_LOGIN_DIAGNOSTIC_V2', {
+        activeDatabase: mongoose.connection.name,
+        modelDatabase: Admin.db.name,
+        collection: Admin.collection.collectionName,
+        count: 1,
+        connectionMatch: true,
+        adminFound: false
+      });
+
+      const loggedFields = JSON.stringify(diagnosticLog.mock.calls);
+      expect(loggedFields).not.toContain('admin@example.com');
+      expect(loggedFields).not.toContain('missing@example.com');
+      expect(loggedFields).not.toContain('a-strong-password-123');
+      expect(loggedFields).not.toContain('incorrect-password');
+      expect(loggedFields).not.toMatch(/\$2[aby]\$/);
     } finally {
       diagnosticLog.mockRestore();
       if (previousDiagnostics === undefined) delete process.env.ADMIN_LOGIN_DIAGNOSTICS;

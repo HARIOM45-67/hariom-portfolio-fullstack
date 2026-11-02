@@ -19,23 +19,21 @@ const loginSchema = z.object({
   password: z.string().min(1).max(72)
 }).strict();
 
-async function logLoginDiagnostic(adminFound, passwordMatched) {
+async function logAdminLookupDiagnostic() {
   if (process.env.ADMIN_LOGIN_DIAGNOSTICS !== 'true') return;
 
   const activeConnection = mongoose.connection;
   const modelConnection = Admin.db;
-  const collectionName = Admin.collection.collectionName;
-  const adminCount = await Admin.countDocuments({});
+  const collection = Admin.collection.collectionName;
+  const count = await Admin.countDocuments({});
 
-  console.info('Admin login diagnostic', {
+  console.info('ADMIN_LOGIN_DIAGNOSTIC_V2', {
     activeDatabase: activeConnection.name,
     modelDatabase: modelConnection.name,
-    collectionName,
-    adminCount,
-    modelUsesActiveConnection: modelConnection === activeConnection,
-    modelDatabaseMatchesActiveConnection: modelConnection.name === activeConnection.name,
-    adminFound,
-    passwordMatched
+    collection,
+    count,
+    connectionMatch: modelConnection === activeConnection && modelConnection.name === activeConnection.name,
+    adminFound: false
   });
 }
 
@@ -49,12 +47,11 @@ router.post('/login', requireTrustedOrigin, loginLimiter, async (req, res, next)
     const email = parsed.data.email.toLowerCase();
     const admin = await Admin.findOne({ email }).select('+password');
     if (!admin) {
-      await logLoginDiagnostic(false, null);
+      await logAdminLookupDiagnostic();
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
     const passwordMatched = await admin.verifyPassword(parsed.data.password);
-    await logLoginDiagnostic(true, passwordMatched);
     if (!passwordMatched) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
