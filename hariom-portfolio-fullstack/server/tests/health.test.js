@@ -50,6 +50,20 @@ describe('API foundation', () => {
     expect(response.body.message).toBe('Request origin is not allowed.');
   });
 
+  it('allows the deployed Vercel frontend to make credentialed API preflight requests', async () => {
+    const origin = 'https://hariom-portfolio-fullstack.vercel.app';
+    const response = await request(app)
+      .options('/api/auth/login')
+      .set('Origin', origin)
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'content-type');
+
+    expect(response.status).toBe(204);
+    expect(response.headers['access-control-allow-origin']).toBe(origin);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+    expect(response.headers['access-control-allow-methods']).toContain('POST');
+  });
+
   it('returns a structured 404 for unknown API routes', async () => {
     const response = await request(app).get('/api/not-a-route');
 

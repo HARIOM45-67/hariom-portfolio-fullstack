@@ -21,6 +21,29 @@ The Express application serves its existing `/api/...` routes directly. Do not a
 
 Configure production variables in the backend project's **Settings → Environment Variables**. Add them to Production, and to Preview/Development only when those environments have their own valid database, origins, and credentials. Do not put backend secrets in the frontend project. Keep the two Vercel projects pointed at this repository, with their respective `server` and `client` root directories.
 
+### Render backend CORS and deployment
+
+For the Render web service serving the API, open **Dashboard → your API service → Environment** and set the Production variable:
+
+```text
+CLIENT_ORIGIN=https://hariom-portfolio-fullstack.vercel.app
+```
+
+Use the exact origin only: no trailing slash, path, wildcard, or quotes. Save the change. In **Events**, confirm Render starts and completes a deployment with the updated environment; if it does not deploy automatically, select **Manual Deploy → Deploy latest commit**. The deployed server must use the current CORS policy in `src/config/clientOrigins.js`, `src/app.js`, and `src/middleware/auth.js`. If those changes are not in the commit Render deploys, commit and push the CORS changes first, then deploy that commit. Do not stage unrelated changes.
+
+A healthy `/api/health` response does not verify CORS. Check the login preflight after deployment:
+
+```powershell
+curl.exe -i -X OPTIONS "https://<render-api-domain>/api/auth/login" `
+  -H "Origin: https://hariom-portfolio-fullstack.vercel.app" `
+  -H "Access-Control-Request-Method: POST" `
+  -H "Access-Control-Request-Headers: content-type"
+```
+
+It must return HTTP 204 with `Access-Control-Allow-Origin: https://hariom-portfolio-fullstack.vercel.app` and `Access-Control-Allow-Credentials: true`. Then test the login from the browser; do not put real credentials in shell commands or logs. A rejected origin returns HTTP 403 with `Request origin is not allowed.` and no allow-origin header.
+
+The frontend Axios client sends credentialed requests. Production auth cookies must remain `HttpOnly`, `Secure`, and `SameSite=None` for separate `*.vercel.app` origins; leave `COOKIE_DOMAIN` unset. Browser third-party-cookie restrictions can still affect sessions after CORS succeeds.
+
 ## Required backend environment variables
 
 | Variable | Required | Value |

@@ -14,15 +14,10 @@ import githubRoutes from './routes/github.js';
 import analyticsRoutes from './routes/analytics.js';
 import HttpError from './utils/HttpError.js';
 import { connectDatabase } from './config/database.js';
+import { getAllowedClientOrigins } from './config/clientOrigins.js';
 
 const app = express();
-const defaultClientOrigin = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173';
-const allowedOrigins = new Set(
-  (process.env.CLIENT_ORIGIN || defaultClientOrigin)
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean)
-);
+const allowedOrigins = getAllowedClientOrigins();
 
 app.disable('x-powered-by');
 if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);

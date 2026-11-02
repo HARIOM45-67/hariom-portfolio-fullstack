@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
+import { getAllowedClientOrigins } from '../config/clientOrigins.js';
 
 export const authCookieName = 'portfolio_admin_session';
 
@@ -55,13 +56,9 @@ export async function requireAdmin(req, res, next) {
 
 export function requireTrustedOrigin(req, res, next) {
   const origin = req.get('origin');
-  const defaultClientOrigin = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173';
-  const allowedOrigins = (process.env.CLIENT_ORIGIN || defaultClientOrigin)
-    .split(',')
-    .map(value => value.trim())
-    .filter(Boolean);
+  const allowedOrigins = getAllowedClientOrigins();
 
-  if (!origin || !allowedOrigins.includes(origin)) {
+  if (!origin || !allowedOrigins.has(origin)) {
     return res.status(403).json({ message: 'Request origin is not allowed.' });
   }
   return next();
