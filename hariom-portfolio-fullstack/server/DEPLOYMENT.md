@@ -44,6 +44,8 @@ It must return HTTP 204 with `Access-Control-Allow-Origin: https://hariom-portfo
 
 The frontend Axios client sends credentialed requests. Production auth cookies must remain `HttpOnly`, `Secure`, and `SameSite=None` for separate `*.vercel.app` origins; leave `COOKIE_DOMAIN` unset. Browser third-party-cookie restrictions can still affect sessions after CORS succeeds.
 
+For temporary production login diagnosis, set `ADMIN_LOGIN_DIAGNOSTICS=true` on the backend, deploy, reproduce one login attempt, and inspect the Render service logs. The diagnostic emits only `adminFound` and `passwordMatched` booleans (or `null` when lookup found no record); it never logs credentials or identifiers. Remove the variable and redeploy after diagnosis.
+
 ## Required backend environment variables
 
 | Variable | Required | Value |

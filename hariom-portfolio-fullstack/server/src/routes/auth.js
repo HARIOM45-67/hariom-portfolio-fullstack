@@ -18,6 +18,12 @@ const loginSchema = z.object({
   password: z.string().min(1).max(72)
 }).strict();
 
+function logLoginDiagnostic(adminFound, passwordMatched) {
+  if (process.env.ADMIN_LOGIN_DIAGNOSTICS === 'true') {
+    console.info('Admin login diagnostic', { adminFound, passwordMatched });
+  }
+}
+
 router.post('/login', requireTrustedOrigin, loginLimiter, async (req, res, next) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success || Buffer.byteLength(parsed.data?.password || '', 'utf8') > 72) {
@@ -27,7 +33,14 @@ router.post('/login', requireTrustedOrigin, loginLimiter, async (req, res, next)
   try {
     const email = parsed.data.email.toLowerCase();
     const admin = await Admin.findOne({ email }).select('+password');
-    if (!admin || !(await admin.verifyPassword(parsed.data.password))) {
+    if (!admin) {
+      logLoginDiagnostic(false, null);
+      return res.status(401).json({ message: 'Invalid email or password.' });
+    }
+
+    const passwordMatched = await admin.verifyPassword(parsed.data.password);
+    logLoginDiagnostic(true, passwordMatched);
+    if (!passwordMatched) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 

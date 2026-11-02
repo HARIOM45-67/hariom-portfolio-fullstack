@@ -89,4 +89,34 @@ describe('admin authentication', () => {
       .send({ email: 'admin@example.com', password: 'a-strong-password-123' });
     expect(disallowedOrigin.status).toBe(403);
   });
+
+  it('logs only non-sensitive lookup and bcrypt results when login diagnostics are enabled', async () => {
+    await Admin.create({ email: 'admin@example.com', password: 'a-strong-password-123' });
+    const previousDiagnostics = process.env.ADMIN_LOGIN_DIAGNOSTICS;
+    process.env.ADMIN_LOGIN_DIAGNOSTICS = 'true';
+    const diagnosticLog = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    try {
+      const missingAdmin = await request(app)
+        .post('/api/auth/login')
+        .set('Origin', testOrigin)
+        .send({ email: 'missing@example.com', password: 'a-strong-password-123' });
+      expect(missingAdmin.status).toBe(401);
+
+      const passwordMismatch = await request(app)
+        .post('/api/auth/login')
+        .set('Origin', testOrigin)
+        .send({ email: 'ADMIN@example.com', password: 'incorrect-password' });
+      expect(passwordMismatch.status).toBe(401);
+
+      expect(diagnosticLog.mock.calls).toEqual([
+        ['Admin login diagnostic', { adminFound: false, passwordMatched: null }],
+        ['Admin login diagnostic', { adminFound: true, passwordMatched: false }]
+      ]);
+    } finally {
+      diagnosticLog.mockRestore();
+      if (previousDiagnostics === undefined) delete process.env.ADMIN_LOGIN_DIAGNOSTICS;
+      else process.env.ADMIN_LOGIN_DIAGNOSTICS = previousDiagnostics;
+    }
+  });
 });
