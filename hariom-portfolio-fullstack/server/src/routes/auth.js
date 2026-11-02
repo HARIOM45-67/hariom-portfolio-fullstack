@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { z } from 'zod';
 import Admin from '../models/Admin.js';
 import { authCookieName, cookieOptions, jwtSecret, requireAdmin, requireTrustedOrigin } from '../middleware/auth.js';
@@ -18,10 +19,24 @@ const loginSchema = z.object({
   password: z.string().min(1).max(72)
 }).strict();
 
-function logLoginDiagnostic(adminFound, passwordMatched) {
-  if (process.env.ADMIN_LOGIN_DIAGNOSTICS === 'true') {
-    console.info('Admin login diagnostic', { adminFound, passwordMatched });
-  }
+async function logLoginDiagnostic(adminFound, passwordMatched) {
+  if (process.env.ADMIN_LOGIN_DIAGNOSTICS !== 'true') return;
+
+  const activeConnection = mongoose.connection;
+  const modelConnection = Admin.db;
+  const collectionName = Admin.collection.collectionName;
+  const adminCount = await Admin.countDocuments({});
+
+  console.info('Admin login diagnostic', {
+    activeDatabase: activeConnection.name,
+    modelDatabase: modelConnection.name,
+    collectionName,
+    adminCount,
+    modelUsesActiveConnection: modelConnection === activeConnection,
+    modelDatabaseMatchesActiveConnection: modelConnection.name === activeConnection.name,
+    adminFound,
+    passwordMatched
+  });
 }
 
 router.post('/login', requireTrustedOrigin, loginLimiter, async (req, res, next) => {
@@ -34,12 +49,12 @@ router.post('/login', requireTrustedOrigin, loginLimiter, async (req, res, next)
     const email = parsed.data.email.toLowerCase();
     const admin = await Admin.findOne({ email }).select('+password');
     if (!admin) {
-      logLoginDiagnostic(false, null);
+      await logLoginDiagnostic(false, null);
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
     const passwordMatched = await admin.verifyPassword(parsed.data.password);
-    logLoginDiagnostic(true, passwordMatched);
+    await logLoginDiagnostic(true, passwordMatched);
     if (!passwordMatched) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }

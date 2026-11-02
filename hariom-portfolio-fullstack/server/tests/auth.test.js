@@ -109,9 +109,27 @@ describe('admin authentication', () => {
         .send({ email: 'ADMIN@example.com', password: 'incorrect-password' });
       expect(passwordMismatch.status).toBe(401);
 
-      expect(diagnosticLog.mock.calls).toEqual([
-        ['Admin login diagnostic', { adminFound: false, passwordMatched: null }],
-        ['Admin login diagnostic', { adminFound: true, passwordMatched: false }]
+      expect(diagnosticLog).toHaveBeenCalledTimes(2);
+      for (const [message, diagnostic] of diagnosticLog.mock.calls) {
+        expect(message).toBe('Admin login diagnostic');
+        expect(diagnostic).toMatchObject({
+          activeDatabase: mongoose.connection.name,
+          modelDatabase: Admin.db.name,
+          collectionName: Admin.collection.collectionName,
+          adminCount: 1,
+          modelUsesActiveConnection: true,
+          modelDatabaseMatchesActiveConnection: true
+        });
+        expect(diagnostic).not.toHaveProperty('email');
+        expect(diagnostic).not.toHaveProperty('password');
+        expect(diagnostic).not.toHaveProperty('hash');
+      }
+      expect(diagnosticLog.mock.calls.map(([, diagnostic]) => ({
+        adminFound: diagnostic.adminFound,
+        passwordMatched: diagnostic.passwordMatched
+      }))).toEqual([
+        { adminFound: false, passwordMatched: null },
+        { adminFound: true, passwordMatched: false }
       ]);
     } finally {
       diagnosticLog.mockRestore();
