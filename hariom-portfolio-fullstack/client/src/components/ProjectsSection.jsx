@@ -1,7 +1,36 @@
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUpRight, ExternalLink, Github } from 'lucide-react';
 import { api, getApiErrorMessage } from '../lib/api.js';
+import { supplementalProjects } from '../data/projects.js';
 import ProjectPreview from './ProjectPreview.jsx';
+
+function projectNameKey(name) {
+  return typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').toLowerCase() : '';
+}
+
+function projectUrlKey(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname.replace(/\/+$/, '')}${url.search}`.toLowerCase();
+  } catch {
+    return value.trim().replace(/\/+$/, '').toLowerCase();
+  }
+}
+
+function appendSupplementalProjects(projects) {
+  const projectNames = new Set(projects.map(project => projectNameKey(project.name)).filter(Boolean));
+  const projectUrls = new Set(projects.map(project => projectUrlKey(project.liveUrl)).filter(Boolean));
+  const additions = supplementalProjects.filter(project => {
+    const name = projectNameKey(project.name);
+    const url = projectUrlKey(project.liveUrl);
+    if ((name && projectNames.has(name)) || (url && projectUrls.has(url))) return false;
+    if (name) projectNames.add(name);
+    if (url) projectUrls.add(url);
+    return true;
+  });
+  return [...projects, ...additions];
+}
 
 function secureHomepage(value) {
   if (typeof value !== 'string' || !value.trim()) return '';
@@ -86,7 +115,7 @@ export default function ProjectsSection() {
       forks: Number.isFinite(repository.forks_count) ? repository.forks_count : null,
       updatedAt: repository.updated_at || null
     }));
-  const displayedProjects = [...projects, ...repositoryProjects];
+  const displayedProjects = appendSupplementalProjects([...projects, ...repositoryProjects]);
 
   return <>
     {loading && <p className="muted-text project-loading" role="status">Loading published projects and verified GitHub repositories…</p>}
@@ -147,7 +176,7 @@ export default function ProjectsSection() {
                 : <p>No technology stack has been published.</p>}
             </div>}
             {(project.liveUrl || project.repoUrl) && <div className="project-links">
-              {project.liveUrl && <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">Live site <ExternalLink size={13}/></a>}
+              {project.liveUrl && <a href={project.liveUrl} target="_blank" rel="noopener noreferrer">Live Demo <ExternalLink size={13}/></a>}
               {project.repoUrl && <a href={project.repoUrl} target="_blank" rel="noopener noreferrer">Source code <Github size={13}/></a>}
             </div>}
           </div>
