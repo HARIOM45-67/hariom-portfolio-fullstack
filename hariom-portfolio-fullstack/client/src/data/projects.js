@@ -75,3 +75,10 @@ export const supplementalProjects = [
     displayOrder: 0
   }
 ];
+
+export const projectScreenshotOverrides = [
+  {
+    liveUrl: 'https://hariom-portfolio-fullstack.vercel.app/',
+    imageUrl: '/project-screenshots/hariom-portfolio-fullstack.png'
+  }
+];

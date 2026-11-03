@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUpRight, ExternalLink, Github } from 'lucide-react';
 import { api, getApiErrorMessage } from '../lib/api.js';
-import { supplementalProjects } from '../data/projects.js';
+import { projectScreenshotOverrides, supplementalProjects } from '../data/projects.js';
 import ProjectPreview from './ProjectPreview.jsx';
 
 function projectNameKey(name) {
@@ -30,6 +30,16 @@ function appendSupplementalProjects(projects) {
     return true;
   });
   return [...projects, ...additions];
+}
+
+function applyScreenshotOverrides(projects) {
+  const overridesByUrl = new Map(
+    projectScreenshotOverrides.map(override => [projectUrlKey(override.liveUrl), override.imageUrl])
+  );
+  return projects.map(project => ({
+    ...project,
+    imageUrl: overridesByUrl.get(projectUrlKey(project.liveUrl)) || project.imageUrl
+  }));
 }
 
 function secureHomepage(value) {
@@ -133,7 +143,9 @@ export default function ProjectsSection() {
       forks: Number.isFinite(repository.forks_count) ? repository.forks_count : null,
       updatedAt: repository.updated_at || null
     }));
-  const displayedProjects = appendSupplementalProjects([...projects, ...repositoryProjects]);
+  const displayedProjects = appendSupplementalProjects(
+    applyScreenshotOverrides([...projects, ...repositoryProjects])
+  );
 
   return <>
     {loading && <p className="muted-text project-loading" role="status">Loading published projects and verified GitHub repositories…</p>}
