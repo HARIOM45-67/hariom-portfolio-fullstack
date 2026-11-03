@@ -10,7 +10,7 @@ export const supplementalProjects = [
       'Learner testimonials',
       'Free-trial sign-up form'
     ],
-    imageUrl: '',
+    imageUrl: '/project-screenshots/task1-landing-page.png',
     stack: ['HTML5', 'CSS3', 'JavaScript'],
     liveUrl: 'https://task1-landing-page-olive.vercel.app/',
     repoUrl: '',
@@ -29,7 +29,7 @@ export const supplementalProjects = [
       'Animated role text and scroll reveals',
       'Contact form validation'
     ],
-    imageUrl: '',
+    imageUrl: '/project-screenshots/task2-portfolio.png',
     stack: ['HTML5', 'CSS3', 'JavaScript'],
     liveUrl: 'https://task2-portfolio-nine.vercel.app/',
     repoUrl: '',
@@ -48,7 +48,7 @@ export const supplementalProjects = [
       'Track completed-task progress',
       'Persist tasks with local storage'
     ],
-    imageUrl: '',
+    imageUrl: '/project-screenshots/task3-todo-app.png',
     stack: ['HTML5', 'CSS3', 'JavaScript', 'Local Storage'],
     liveUrl: 'https://task3-todo-app-mu.vercel.app/',
     repoUrl: '',
@@ -67,7 +67,7 @@ export const supplementalProjects = [
       'Switch between Celsius and Fahrenheit',
       'Revisit recent searches'
     ],
-    imageUrl: '',
+    imageUrl: '/project-screenshots/task4-weather-dashboard.png',
     stack: ['HTML5', 'CSS3', 'JavaScript', 'Fetch API', 'Open-Meteo API'],
     liveUrl: 'https://task4-weather-dashboard.vercel.app/',
     repoUrl: '',

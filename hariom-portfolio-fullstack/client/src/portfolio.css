@@ -546,7 +546,7 @@ html,body{overflow-x:clip}
   border-color:color-mix(in srgb,var(--cyan) 48%,var(--line));
   box-shadow:0 20px 46px #0003
 }
-.project-art{height:auto;aspect-ratio:16/9;border-radius:0;background:linear-gradient(145deg,#17211e,#111615)}
+.project-art{height:clamp(180px,22vw,240px);aspect-ratio:auto;overflow:hidden;border-radius:10px;background:linear-gradient(145deg,#17211e,#111615)}
 .project-screenshot{transition:transform .5s cubic-bezier(.2,.8,.2,1)}
 .project-card:hover .project-screenshot{transform:scale(1.035)}
 .project-art:has(.project-screenshot)::after{pointer-events:none}

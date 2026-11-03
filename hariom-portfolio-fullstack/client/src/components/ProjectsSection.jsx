@@ -48,6 +48,24 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
 }
 
+function ProjectCardArt({ project, index }) {
+  const [screenshotFailed, setScreenshotFailed] = useState(false);
+  const hasScreenshot = Boolean(project.imageUrl) && !screenshotFailed;
+
+  return <div className={`project-art art-${(index % 3) + 1}${hasScreenshot ? ' has-screenshot' : ' has-preview'}`}>
+    {hasScreenshot
+      ? <img
+          className="project-screenshot"
+          src={project.imageUrl}
+          alt={`${project.name} project screenshot`}
+          loading="lazy"
+          onError={() => setScreenshotFailed(true)}
+        />
+      : <ProjectPreview project={project}/>}
+    {hasScreenshot && <span>PROJECT / {String(index + 1).padStart(2, '0')}</span>}
+  </div>;
+}
+
 export default function ProjectsSection() {
   const [projects, setProjects] = useState([]);
   const [repositories, setRepositories] = useState([]);
@@ -131,12 +149,7 @@ export default function ProjectsSection() {
         const features = project.features || [];
         const techStack = project.stack || [];
         return <article className="project-card" key={project.id} data-analytics-project={project.slug}>
-          <div className={`project-art art-${(index % 3) + 1}${project.imageUrl ? ' has-screenshot' : ' has-preview'}`}>
-            {project.imageUrl
-              ? <img className="project-screenshot" src={project.imageUrl} alt={`${project.name} project screenshot`} loading="lazy" />
-              : <ProjectPreview project={project}/>}
-            {project.imageUrl && <span>PROJECT / {String(index + 1).padStart(2, '0')}</span>}
-          </div>
+          <ProjectCardArt project={project} index={index}/>
           <div className="project-content">
             <div className="project-title">
               <div><small>{project.githubRepository ? 'PUBLIC REPOSITORY' : project.featured ? 'FEATURED PROJECT' : 'PROJECT'}</small><h3>{project.name}</h3></div>
